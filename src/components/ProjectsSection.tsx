@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Project, CursorMode } from '../types';
 import { projects } from '../data/projects';
 import { localizeProject } from '../data/projectsTranslations';
@@ -17,67 +17,10 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
 }) => {
   const { lang, t } = useLanguage();
   const [activeIdx, setActiveIdx] = useState<number>(0);
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const isProgrammaticScroll = useRef(false);
-  const scrollTimeout = useRef<any>(null);
 
   const filteredProjects = useMemo(() => {
     return projects.map((p) => localizeProject(p, lang));
   }, [lang]);
-
-  // Synchronize active project with window scroll position so scrolling reveals all projects in sequence
-  useEffect(() => {
-    let ticking = false;
-
-    const handleScroll = () => {
-      if (isProgrammaticScroll.current) return;
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          if (!sectionRef.current) {
-            ticking = false;
-            return;
-          }
-
-          const rect = sectionRef.current.getBoundingClientRect();
-          const pinnedOffset = 70; // Offset under top header
-          const scrollDistance = rect.height - window.innerHeight;
-
-          if (scrollDistance > 50) {
-            const scrolledDistance = pinnedOffset - rect.top;
-            if (scrolledDistance >= 0 && scrolledDistance <= scrollDistance) {
-              const progress = Math.min(1, Math.max(0, scrolledDistance / scrollDistance));
-              const newIdx = Math.min(
-                filteredProjects.length - 1,
-                Math.floor(progress * filteredProjects.length)
-              );
-              setActiveIdx((prev) => {
-                if (prev !== newIdx) {
-                  try {
-                    audio.playMechanicalClick();
-                  } catch {
-                    // non-blocking
-                  }
-                  return newIdx;
-                }
-                return prev;
-              });
-            } else if (scrolledDistance < 0 && rect.top > 0) {
-              setActiveIdx(0);
-            }
-          }
-
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      clearTimeout(scrollTimeout.current);
-    };
-  }, [filteredProjects.length]);
 
   const selectProjectByIndex = useCallback((idx: number) => {
     if (idx < 0 || idx >= filteredProjects.length) return;
@@ -87,27 +30,6 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
       // non-blocking
     }
     setActiveIdx(idx);
-
-    if (sectionRef.current) {
-      const rect = sectionRef.current.getBoundingClientRect();
-      const currentScrollY = window.scrollY;
-      const pinnedOffset = 70;
-      const sectionTop = currentScrollY + rect.top - pinnedOffset;
-      const scrollDistance = sectionRef.current.offsetHeight - window.innerHeight;
-
-      if (scrollDistance > 50) {
-        const targetScroll = sectionTop + ((idx + 0.5) / filteredProjects.length) * scrollDistance;
-        isProgrammaticScroll.current = true;
-        clearTimeout(scrollTimeout.current);
-        window.scrollTo({
-          top: targetScroll,
-          behavior: 'smooth',
-        });
-        scrollTimeout.current = setTimeout(() => {
-          isProgrammaticScroll.current = false;
-        }, 600);
-      }
-    }
   }, [filteredProjects.length]);
 
   const handleLiveProjectClick = (project: Project, e: React.MouseEvent) => {
@@ -142,14 +64,12 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
   return (
     <section
       id="work"
-      ref={sectionRef}
       onKeyDown={handleKeyDown}
       tabIndex={0}
-      className="relative outline-none px-4 sm:px-6 max-w-7xl mx-auto"
-      style={{ minHeight: `${Math.max(180, filteredProjects.length * 60)}vh` }}
+      className="relative outline-none py-10 sm:py-14 px-4 sm:px-6 max-w-7xl mx-auto"
     >
-      {/* Showcase Stage - Pinned while scrolling through all projects */}
-      <div className="sticky top-16 sm:top-20 z-10 pt-4 sm:pt-8 pb-10">
+      {/* Showcase Stage */}
+      <div className="relative z-10">
         {/* Section Header */}
         <div className="flex items-end justify-between mb-4 sm:mb-6 pb-4 border-b border-white/10">
           <div>
