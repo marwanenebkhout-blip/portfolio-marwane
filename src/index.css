@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Gilroy-BlackItalic';
+  src: url('/fonts/Gilroy-HeavyItalic.woff') format('woff'),
+       url('/fonts/Gilroy-HeavyItalic.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gilroy-HeavyItalic';
+  src: url('/fonts/Gilroy-HeavyItalic.woff') format('woff'),
+       url('/fonts/Gilroy-HeavyItalic.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@theme {
+  --font-gilroy-blackitalic: 'Gilroy-BlackItalic', 'Gilroy-HeavyItalic', 'Syne', sans-serif;
+  --font-gilroy-heavy-italic: 'Gilroy-HeavyItalic', 'Gilroy-BlackItalic', 'Syne', sans-serif;
+}
+
+.font-gilroy-heavy-italic,
+.font-gilroy-blackitalic,
+.font-gilroy-black-italic {
+  font-family: 'Gilroy-BlackItalic', 'Gilroy-HeavyItalic', 'Syne', sans-serif !important;
+  font-weight: 900 !important;
+  font-style: italic !important;
+}
+
+@layer base {
+  :root {
+    --font-display: 'Syne', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-hero: 'Bebas Neue', 'Anton', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-gilroy-heavy-italic: 'Gilroy-HeavyItalic', sans-serif;
+    --neon-green: #39FF14;
+    --neon-blue: #007BFF;
+    --neon-magenta: #FF00FF;
+    --bg-dark: #080808;
+  }
+
+  html, body {
+    font-family: var(--font-body);
+    background-color: #080808;
+    color: #E0E0E0;
+  }
+
+  .font-hero {
+    font-family: var(--font-hero);
+    letter-spacing: 0.02em;
+    line-height: 0.88;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.04em;
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Selection Color matching Immersive UI */
+::selection {
+  background-color: #39FF14;
+  color: #000000;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #080808;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e1e22;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #39FF14;
+}
+
+/* Immersive SVG Grain Noise overlay */
+.immersive-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.035;
+  pointer-events: none;
+}
+
+/* Scanline / CRT overlay */
+.scanlines {
+  background: linear-gradient(
+    rgba(8, 8, 8, 0) 50%, 
+    rgba(0, 0, 0, 0.35) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(57, 255, 20, 0.02),
+    rgba(0, 123, 255, 0.01),
+    rgba(255, 0, 255, 0.02)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Subtle digital grid */
+.cyber-grid {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+}
+
+.glow-neon-green {
+  box-shadow: 0 0 25px -3px rgba(57, 255, 20, 0.5);
+}
+
+.glow-neon-blue {
+  box-shadow: 0 0 25px -3px rgba(0, 123, 255, 0.5);
+}
+
+.glow-neon-pink {
+  box-shadow: 0 0 25px -3px rgba(255, 0, 255, 0.5);
+}
+
+/* Tactile 3D Keycap Shadow */
+.keycap-shadow {
+  box-shadow: 0 6px 0 #000, 0 8px 15px rgba(0, 0, 0, 0.5);
+}
+.keycap-shadow:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #000;
+}
+
+.keycap-green-shadow {
+  box-shadow: 0 6px 0 #1a7a0a, 0 8px 15px rgba(57, 255, 20, 0.25);
+}
+.keycap-green-shadow:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #1a7a0a;
+}
+
