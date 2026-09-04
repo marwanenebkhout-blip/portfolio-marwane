@@ -268,11 +268,21 @@ const KeyboardScene = ({
   onOpenContact,
   setCursorMode,
 }: MechanicalFooterKeyboardProps) => {
-  const { mouse } = useThree();
+  const { mouse, viewport } = useThree();
   const chassisRef = useRef<THREE.Group>(null);
   const [activeHoverInfo, setActiveHoverInfo] = useState<string | null>(null);
   const igTexture = useMemo(() => createInstagramTexture(), []);
   const metalTexture = useMemo(() => createBrushedMetalTexture(), []);
+
+  // Compute responsive scale so the entire 3D mechanical keyboard chassis (~14.6 units wide)
+  // fits completely inside the canvas viewport on any mobile phone or tablet screen without clipping
+  const responsiveScale = useMemo(() => {
+    // Total keyboard visual width is ~14.8 units including chassis bevel and corner screws
+    const targetWidth = 14.8;
+    // 0.94 factor ensures a balanced margin on the left and right edges
+    const scale = (viewport.width * 0.94) / targetWidth;
+    return Math.min(1.0, Math.max(0.35, scale));
+  }, [viewport.width]);
 
   // Smooth mouse parallax rotation
   useFrame(() => {
@@ -437,7 +447,11 @@ const KeyboardScene = ({
   ];
 
   return (
-    <group ref={chassisRef} position={[0, -0.4, 0]}>
+    <group
+      ref={chassisRef}
+      position={[0, -0.4, 0]}
+      scale={[responsiveScale, responsiveScale, responsiveScale]}
+    >
       {/* 1. Main 3D Gunmetal Brushed Aluminum Hardware Enclosure */}
       <RoundedBox
         args={[14.2, 0.9, 6.8]}
@@ -631,13 +645,13 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
   setCursorMode,
 }) => {
   return (
-    <div className="w-full max-w-[1380px] mx-auto select-none">
-      {/* 3D WebGL Canvas Container without bounding frame/box */}
-      <div className="relative w-full h-[360px] sm:h-[450px] lg:h-[500px] overflow-visible">
+    <div className="w-full max-w-[1380px] mx-auto select-none overflow-hidden">
+      {/* 3D WebGL Canvas Container with optimized responsive height */}
+      <div className="relative w-full h-[260px] sm:h-[360px] md:h-[440px] lg:h-[500px] overflow-hidden flex items-center justify-center">
         
         {/* Ambient Neon Green Halo Backlight Behind Keyboard */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] sm:w-[950px] lg:w-[1150px] h-[260px] sm:h-[350px] bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.32)_0%,rgba(57,255,20,0.12)_45%,rgba(57,255,20,0.02)_70%,transparent_85%)] blur-[50px] sm:blur-[70px] pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] sm:w-[750px] lg:w-[900px] h-[200px] sm:h-[280px] bg-[#39FF14]/15 blur-[90px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[650px] sm:max-w-[950px] lg:max-w-[1150px] h-[200px] sm:h-[350px] bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.3)_0%,rgba(57,255,20,0.1)_45%,rgba(57,255,20,0.02)_70%,transparent_85%)] blur-[40px] sm:blur-[70px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[450px] sm:max-w-[750px] lg:max-w-[900px] h-[150px] sm:h-[280px] bg-[#39FF14]/12 blur-[60px] sm:blur-[90px] rounded-full pointer-events-none" />
 
         <Canvas
           shadows

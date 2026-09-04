@@ -1,5 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Project, CursorMode } from '../types';
 import { projects } from '../data/projects';
 import { localizeProject } from '../data/projectsTranslations';
@@ -18,20 +17,106 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
 }) => {
   const { lang, t } = useLanguage();
   const [activeIdx, setActiveIdx] = useState<number>(0);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const isProgrammaticScroll = useRef(false);
+  const scrollTimeout = useRef<any>(null);
 
   const filteredProjects = useMemo(() => {
     return projects.map((p) => localizeProject(p, lang));
   }, [lang]);
 
+  // Synchronize active project with window scroll position so scrolling reveals all projects in sequence
+  useEffect(() => {
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (isProgrammaticScroll.current) return;
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (!sectionRef.current) {
+            ticking = false;
+            return;
+          }
+
+          const rect = sectionRef.current.getBoundingClientRect();
+          const pinnedOffset = 70; // Offset under top header
+          const scrollDistance = rect.height - window.innerHeight;
+
+          if (scrollDistance > 50) {
+            const scrolledDistance = pinnedOffset - rect.top;
+            if (scrolledDistance >= 0 && scrolledDistance <= scrollDistance) {
+              const progress = Math.min(1, Math.max(0, scrolledDistance / scrollDistance));
+              const newIdx = Math.min(
+                filteredProjects.length - 1,
+                Math.floor(progress * filteredProjects.length)
+              );
+              setActiveIdx((prev) => {
+                if (prev !== newIdx) {
+                  try {
+                    audio.playMechanicalClick();
+                  } catch {
+                    // non-blocking
+                  }
+                  return newIdx;
+                }
+                return prev;
+              });
+            } else if (scrolledDistance < 0 && rect.top > 0) {
+              setActiveIdx(0);
+            }
+          }
+
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout.current);
+    };
+  }, [filteredProjects.length]);
+
   const selectProjectByIndex = useCallback((idx: number) => {
     if (idx < 0 || idx >= filteredProjects.length) return;
-    audio.playMechanicalClick();
+    try {
+      audio.playMechanicalClick();
+    } catch {
+      // non-blocking
+    }
     setActiveIdx(idx);
+
+    if (sectionRef.current) {
+      const rect = sectionRef.current.getBoundingClientRect();
+      const currentScrollY = window.scrollY;
+      const pinnedOffset = 70;
+      const sectionTop = currentScrollY + rect.top - pinnedOffset;
+      const scrollDistance = sectionRef.current.offsetHeight - window.innerHeight;
+
+      if (scrollDistance > 50) {
+        const targetScroll = sectionTop + ((idx + 0.5) / filteredProjects.length) * scrollDistance;
+        isProgrammaticScroll.current = true;
+        clearTimeout(scrollTimeout.current);
+        window.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth',
+        });
+        scrollTimeout.current = setTimeout(() => {
+          isProgrammaticScroll.current = false;
+        }, 600);
+      }
+    }
   }, [filteredProjects.length]);
 
   const handleLiveProjectClick = (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
-    audio.playMechanicalClick();
+    try {
+      audio.playMechanicalClick();
+    } catch {
+      // non-blocking
+    }
     onSelectProject(project);
   };
 
@@ -57,14 +142,16 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
   return (
     <section
       id="work"
+      ref={sectionRef}
       onKeyDown={handleKeyDown}
       tabIndex={0}
-      className="relative outline-none py-12 sm:py-16 px-4 sm:px-6 max-w-7xl mx-auto"
+      className="relative outline-none px-4 sm:px-6 max-w-7xl mx-auto"
+      style={{ minHeight: `${Math.max(180, filteredProjects.length * 60)}vh` }}
     >
-      {/* Showcase Stage */}
-      <div className="relative z-10">
+      {/* Showcase Stage - Pinned while scrolling through all projects */}
+      <div className="sticky top-16 sm:top-20 z-10 pt-4 sm:pt-8 pb-10">
         {/* Section Header */}
-        <div className="flex items-end justify-between mb-6 pb-4 border-b border-white/10">
+        <div className="flex items-end justify-between mb-4 sm:mb-6 pb-4 border-b border-white/10">
           <div>
             <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#39FF14] tracking-[0.3em] uppercase mb-1.5">
               <Layers className="h-4 w-4" />
@@ -75,8 +162,8 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
             </h2>
           </div>
 
-          {/* Controls: Prev/Next */}
-          <div className="flex items-center gap-1 bg-[#111114] p-1 rounded-full border border-white/10">
+          {/* Controls: Prev/Next & Live Counter */}
+          <div className="flex items-center gap-1.5 bg-[#111114] p-1 rounded-full border border-white/10 shadow-lg backdrop-blur-md">
             <button
               onClick={handlePrev}
               disabled={activeIdx === 0}
@@ -85,6 +172,9 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
+            <span className="font-mono text-xs text-white/80 px-2 font-semibold tracking-wider select-none">
+              {String(activeIdx + 1).padStart(2, '0')} / {String(filteredProjects.length).padStart(2, '0')}
+            </span>
             <button
               onClick={handleNext}
               disabled={activeIdx === filteredProjects.length - 1}
@@ -96,12 +186,11 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
           </div>
         </div>
 
-        {/* PHYSICAL STACK CONTAINER (Matching Reference Screenshot Exactly) */}
-        <div className="relative pb-6">
+        {/* PHYSICAL STACK CONTAINER */}
+        <div className="relative pb-4">
           {filteredProjects.map((project, idx) => {
             const isActive = idx === activeIdx;
             const isBeforeActive = idx < activeIdx;
-            const isAfterActive = idx > activeIdx;
             const indexFormatted = String(idx + 1).padStart(2, '0');
 
             // Media selection ensuring non-duplication
@@ -109,26 +198,18 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
             const secondaryTop = project.secondaryImage || project.gallery?.[1]?.url || project.heroImage;
             const secondaryBottom = project.secondaryBottomImage || project.gallery?.[2]?.url || project.gallery?.[0]?.url || secondaryTop;
 
-            // Compute precise layering z-index:
-            // Top stack: 10 + idx (cards before active stack over each other downwards)
-            // Active card: 30 (sits right in front of top stack)
-            // Bottom stack: 40 + idx (cards after active stack below active card)
             const zIndex = isBeforeActive
               ? 10 + idx
               : isActive
               ? 30
               : 40 + idx;
 
+            // Pre-mount nearby cards so images and visuals render instantaneously without layout pop
+            const shouldMountMedia = Math.abs(idx - activeIdx) <= 1;
+
             return (
-              <motion.div
+              <div
                 key={project.id}
-                layout
-                transition={{
-                  type: 'spring',
-                  stiffness: 300,
-                  damping: 32,
-                  mass: 0.85,
-                }}
                 style={{ zIndex }}
                 onClick={() => {
                   if (!isActive) selectProjectByIndex(idx);
@@ -137,74 +218,73 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                   setCursorMode(isActive ? 'OPEN' : 'CLICK', isActive ? 'CASE STUDY' : 'EXPAND');
                 }}
                 onMouseLeave={() => setCursorMode('DEFAULT')}
-                className={`relative rounded-[24px] sm:rounded-[30px] md:rounded-[34px] border bg-[#0b0c10] select-none transition-colors duration-300 overflow-hidden cursor-pointer ${
+                className={`relative rounded-[20px] sm:rounded-[26px] md:rounded-[30px] border bg-[#0b0c10] select-none transition-all duration-200 overflow-hidden cursor-pointer transform-gpu ${
                   idx > 0 ? '-mt-4 sm:-mt-5 md:-mt-6' : ''
                 } ${
                   isActive
-                    ? 'border-white/40 shadow-[0_-12px_40px_rgba(0,0,0,0.95),0_25px_60px_rgba(0,0,0,0.95)] ring-1 ring-white/20'
-                    : 'border-white/20 shadow-[0_-8px_30px_rgba(0,0,0,0.85),0_12px_35px_rgba(0,0,0,0.85)] hover:border-white/40 hover:bg-[#101116]'
+                    ? 'border-white/40 shadow-[0_12px_40px_rgba(0,0,0,0.85)] ring-1 ring-white/20'
+                    : 'border-white/20 shadow-[0_6px_25px_rgba(0,0,0,0.7)] hover:border-white/40 hover:bg-[#101116]'
                 }`}
               >
                 {/* Card Header Bar (Always visible in the stack) */}
-                <div className="p-4 sm:p-5 md:px-7 md:py-4 flex items-center justify-between gap-4 select-none">
+                <div className="p-3 sm:p-4 md:px-6 md:py-3.5 flex items-center justify-between gap-2 sm:gap-4 select-none min-w-0">
                   {/* Left: Big Number + Client */}
-                  <div className="flex items-center gap-4 sm:gap-6 md:gap-7">
+                  <div className="flex items-center gap-2.5 sm:gap-5 md:gap-6 min-w-0 flex-1">
                     {/* Big Modernist Sans Number */}
                     <span
-                      className={`font-sans font-black tracking-tight select-none transition-colors ${
+                      className={`font-sans font-black tracking-tight select-none transition-colors shrink-0 ${
                         isActive
-                          ? 'text-white text-2xl sm:text-3xl md:text-4xl drop-shadow-[0_0_12px_rgba(255,255,255,0.25)]'
-                          : 'text-white/80 text-xl sm:text-2xl md:text-3xl'
+                          ? 'text-white text-lg sm:text-2xl md:text-3xl drop-shadow-[0_0_12px_rgba(255,255,255,0.25)]'
+                          : 'text-white/70 text-base sm:text-xl md:text-2xl'
                       }`}
                     >
                       {indexFormatted}
                     </span>
 
                     {/* Project Title & Client Information */}
-                    <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0 flex-1">
                       <span
-                        className={`font-display text-base sm:text-xl md:text-2xl font-bold tracking-tight transition-colors truncate max-w-[200px] sm:max-w-[320px] md:max-w-md ${
+                        className={`font-display text-sm sm:text-lg md:text-xl font-bold tracking-tight transition-colors truncate ${
                           isActive ? 'text-white' : 'text-white/80'
                         }`}
                       >
                         {project.title}
                       </span>
-                      <span className="font-mono text-[9px] sm:text-[10px] font-medium text-white/40 tracking-wider truncate max-w-[180px] sm:max-w-[280px] md:max-w-md">
+                      <span className="font-mono text-[9px] sm:text-[10px] font-medium text-white/40 tracking-wider truncate">
                         {project.client}
                       </span>
                     </div>
                   </div>
 
                   {/* Right: Live Project Pill Button */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center shrink-0">
                     <button
                       onClick={(e) => handleLiveProjectClick(project, e)}
                       onMouseEnter={() => setCursorMode('HOVER', 'EXPLORE')}
                       onMouseLeave={() => setCursorMode('DEFAULT')}
-                      className={`inline-flex items-center gap-2 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full font-mono text-[10px] sm:text-xs font-semibold tracking-wider uppercase border transition-all cursor-pointer shadow-sm group/btn ${
+                      className={`inline-flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full font-mono text-[10px] sm:text-xs font-semibold tracking-wider uppercase border transition-all cursor-pointer shadow-sm group/btn shrink-0 whitespace-nowrap ${
                         isActive
                           ? 'bg-transparent text-white border-white/60 hover:bg-white hover:text-black hover:border-white shadow-[0_0_20px_rgba(255,255,255,0.2)]'
                           : 'bg-[#141418]/60 text-white/80 border-white/25 hover:border-white hover:bg-white hover:text-black'
                       }`}
                     >
-                      <span>LIVE PROJECT</span>
-                      <ArrowUpRight className="h-3 sm:h-3.5 w-3 sm:w-3.5 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                      <span>LIVE</span>
+                      <span className="hidden sm:inline">PROJECT</span>
+                      <ArrowUpRight className="h-3 sm:h-3.5 w-3 sm:w-3.5 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform shrink-0" />
                     </button>
                   </div>
                 </div>
 
-                {/* Card Media Showcase: revealed ONLY on the active card */}
-                <AnimatePresence initial={false}>
-                  {isActive && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-4 sm:px-6 md:px-7 pb-4 sm:pb-6 md:pb-7 pt-1">
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-stretch h-auto md:h-[380px] lg:h-[430px]">
+                {/* Card Media Showcase: Instant GPU-accelerated CSS Grid accordion */}
+                <div
+                  className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
+                    isActive ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    {shouldMountMedia && (
+                      <div className="px-3 sm:px-5 md:px-6 pb-3 sm:pb-5 md:pb-6 pt-1">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3.5 items-stretch h-auto md:h-[320px] lg:h-[370px] xl:h-[400px]">
                           
                           {/* Left Large Visual (7 Cols) */}
                           <div
@@ -214,7 +294,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                             }}
                             onMouseEnter={() => setCursorMode('OPEN', 'CASE STUDY')}
                             onMouseLeave={() => setCursorMode('DEFAULT')}
-                            className="md:col-span-7 rounded-[18px] sm:rounded-[22px] md:rounded-[26px] overflow-hidden border border-white/15 bg-black relative aspect-[16/10] md:aspect-auto md:h-full group/media cursor-pointer"
+                            className="md:col-span-7 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black relative aspect-[16/10] md:aspect-auto md:h-full group/media cursor-pointer transform-gpu"
                           >
                             {project.videoUrl ? (
                               <video
@@ -223,21 +303,24 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                 loop
                                 muted
                                 playsInline
-                                className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-500"
+                                preload="metadata"
+                                className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-300"
                               />
                             ) : (
                               <img
                                 src={mainVisual}
                                 alt={project.title}
                                 referrerPolicy="no-referrer"
-                                className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-500"
+                                loading="eager"
+                                decoding="async"
+                                className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-300"
                               />
                             )}
                             <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 pointer-events-none" />
                           </div>
 
                           {/* Right 2 Stacked Visuals (5 Cols) */}
-                          <div className="md:col-span-5 grid grid-cols-2 md:flex md:flex-col gap-3 sm:gap-4 md:h-full">
+                          <div className="md:col-span-5 grid grid-cols-2 md:flex md:flex-col gap-2.5 sm:gap-3 md:h-full">
                             {/* Top Visual */}
                             <div
                               onClick={() => {
@@ -246,7 +329,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                               }}
                               onMouseEnter={() => setCursorMode('OPEN', 'CASE STUDY')}
                               onMouseLeave={() => setCursorMode('DEFAULT')}
-                              className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[18px] sm:rounded-[22px] md:rounded-[26px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer"
+                              className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer transform-gpu"
                             >
                               {secondaryTop && (secondaryTop.endsWith('.mp4') || secondaryTop.endsWith('.mov') || secondaryTop.endsWith('.webm')) ? (
                                 <video
@@ -255,14 +338,17 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                   loop
                                   muted
                                   playsInline
-                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-500"
+                                  preload="metadata"
+                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                 />
                               ) : (
                                 <img
                                   src={secondaryTop}
                                   alt={`${project.title} visual 1`}
                                   referrerPolicy="no-referrer"
-                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-500"
+                                  loading="eager"
+                                  decoding="async"
+                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                 />
                               )}
                               <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 pointer-events-none" />
@@ -276,7 +362,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                               }}
                               onMouseEnter={() => setCursorMode('OPEN', 'CASE STUDY')}
                               onMouseLeave={() => setCursorMode('DEFAULT')}
-                              className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[18px] sm:rounded-[22px] md:rounded-[26px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer"
+                              className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer transform-gpu"
                             >
                               {secondaryBottom && (secondaryBottom.endsWith('.mp4') || secondaryBottom.endsWith('.mov') || secondaryBottom.endsWith('.webm')) ? (
                                 <video
@@ -285,14 +371,17 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                   loop
                                   muted
                                   playsInline
-                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-500"
+                                  preload="metadata"
+                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                 />
                               ) : (
                                 <img
                                   src={secondaryBottom}
                                   alt={`${project.title} visual 2`}
                                   referrerPolicy="no-referrer"
-                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-500"
+                                  loading="eager"
+                                  decoding="async"
+                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                 />
                               )}
                               <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 pointer-events-none" />
@@ -301,11 +390,11 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
 
                         </div>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    )}
+                  </div>
+                </div>
 
-              </motion.div>
+              </div>
             );
           })}
         </div>

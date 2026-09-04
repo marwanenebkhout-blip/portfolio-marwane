@@ -68,7 +68,7 @@ export const RelevantCompaniesVideo: React.FC = () => {
   };
 
   return (
-    <div ref={containerRef} className="space-y-3">
+    <div ref={containerRef} className="space-y-3 pt-6 sm:pt-10">
       {/* Title with matching typography to "Formation & Diplômes" */}
       <h3 className="font-display text-xl font-bold uppercase tracking-tight text-white flex items-center gap-2">
         <Briefcase className="h-4 w-4 text-[#39FF14]" />

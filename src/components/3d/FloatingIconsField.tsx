@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, Suspense, Component, ReactNode } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, Preload } from '@react-three/drei';
 import * as THREE from 'three';
 import { audio } from '../../utils/audio';
@@ -176,6 +176,13 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
 // Component parsing the GLB file into individual centered meshes
 const FloatingIconsScene: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }) => {
   const gltf = useGLTF(MODEL_URL, DRACO_DECODER_PATH) as any;
+  const { viewport } = useThree();
+
+  // Dynamically scale icons so they fit comfortably inside the canvas on narrow mobile screens
+  const responsiveScale = useMemo(() => {
+    // Normal desktop spread is ~4.8 units
+    return Math.min(1.0, Math.max(0.48, (viewport.width * 0.92) / 4.8));
+  }, [viewport.width]);
 
   // Extract and center each mesh individually
   const iconMeshes = useMemo(() => {
@@ -232,7 +239,7 @@ const FloatingIconsScene: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }
   }, [gltf]);
 
   return (
-    <group>
+    <group scale={[responsiveScale, responsiveScale, responsiveScale]}>
       {iconMeshes.map((item, idx) => (
         <SingleFloatingIcon
           key={item.id}
@@ -284,16 +291,16 @@ const SoftBackdropGlow: React.FC = () => {
 
 export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }) => {
   return (
-    <section id="floating-icons" className="relative w-full max-w-7xl mx-auto py-10 sm:py-16 px-2 sm:px-4 select-none">
+    <section id="floating-icons" className="relative w-full max-w-7xl mx-auto py-10 sm:py-16 px-2 sm:px-4 select-none overflow-hidden">
       {/* Soft Ambient Background Glow strictly behind the 3D Canvas */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center -z-10 overflow-hidden">
         <div 
-          className="w-[620px] sm:w-[860px] lg:w-[1080px] h-[300px] sm:h-[400px] lg:h-[460px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.18)_0%,rgba(16,185,129,0.07)_45%,transparent_70%)] blur-[75px] sm:blur-[100px]" 
+          className="w-full max-w-[620px] sm:max-w-[860px] lg:max-w-[1080px] h-[300px] sm:h-[400px] lg:h-[460px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.18)_0%,rgba(16,185,129,0.07)_45%,transparent_70%)] blur-[75px] sm:blur-[100px]" 
         />
       </div>
 
       {/* Seamless Transparent 3D Stage without frame or borders */}
-      <div className="relative w-full h-[480px] sm:h-[600px] lg:h-[680px] overflow-visible z-0">
+      <div className="relative w-full h-[360px] sm:h-[480px] lg:h-[650px] overflow-hidden z-0">
         {/* R3F Canvas */}
         <Canvas
           camera={{ position: [0, 0, 5.4], fov: 45 }}

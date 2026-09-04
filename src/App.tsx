@@ -77,10 +77,10 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-[#e2e8f0] relative selection:bg-[#00ff66] selection:text-black">
+    <div className="min-h-screen bg-black text-[#e2e8f0] relative selection:bg-[#00ff66] selection:text-black overflow-x-hidden w-full max-w-full">
       {/* Cybernetic Scanlines and Noise FX */}
-      <div className="fixed inset-0 scanlines opacity-40 pointer-events-none z-30" />
-      <div className="fixed inset-0 bg-noise opacity-15 pointer-events-none z-10" />
+      <div className="fixed inset-0 scanlines opacity-40 pointer-events-none z-30 overflow-hidden" />
+      <div className="fixed inset-0 bg-noise opacity-15 pointer-events-none z-10 overflow-hidden" />
 
       {/* Top Header Navigation */}
       <HeaderNav
@@ -90,7 +90,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="relative z-20">
+      <main className="relative z-20 overflow-x-hidden w-full max-w-full">
         {/* HERO SECTION MATCHING MOCKUP */}
         <section
           id="hero"
@@ -124,7 +124,7 @@ export default function App() {
               </div>
 
               {/* Massive Architectural Headline Image */}
-              <div className="select-none w-full max-w-[420px] sm:max-w-[500px] md:max-w-[560px] lg:max-w-[600px] xl:max-w-[640px] my-1 -ml-1">
+              <div className="select-none w-full max-w-[420px] sm:max-w-[500px] md:max-w-[560px] lg:max-w-[600px] xl:max-w-[640px] my-1 sm:-ml-1 ml-0">
                 <img 
                   src={titleImage} 
                   alt="Marwane NEBKHOUT®" 
@@ -197,7 +197,7 @@ export default function App() {
       </main>
 
       {/* Global Site Footer with 3D Mechanical Keyboard Console */}
-      <footer id="contact" className="relative z-20 bg-black border-t border-white/10 pt-16 pb-12 px-4 sm:px-6">
+      <footer id="contact" className="relative z-20 bg-black border-t border-white/10 pt-16 pb-12 px-4 sm:px-6 overflow-hidden w-full max-w-full">
         <div className="max-w-[1400px] mx-auto space-y-12">
           {/* Header Title for Footer Hardware Console */}
           <div className="text-center">

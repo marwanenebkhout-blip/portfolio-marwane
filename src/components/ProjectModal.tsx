@@ -364,11 +364,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 border border-white/30 text-white font-mono text-xs backdrop-blur-md">
                             <ZoomIn className="h-3.5 w-3.5 text-[#39FF14]" />
-                            <span>{isVideo ? 'VISIONNER LA VIDÉO' : 'AGRANDIR LA DIAPOSITIVE'}</span>
+                            <span>{isVideo ? (lang === 'fr' ? 'VISIONNER LA VIDÉO' : 'WATCH VIDEO') : (lang === 'fr' ? "AGRANDIR L'IMAGE" : 'ENLARGE IMAGE')}</span>
                           </div>
-                        </div>
-                        <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-black/70 border border-white/20 font-mono text-[10px] text-white/80">
-                          {isVideo ? 'VIDÉO' : 'DIAPO'} {String(idx + 1).padStart(2, '0')} / {String(project.gallery?.length).padStart(2, '0')}
                         </div>
                       </div>
                     </div>
@@ -392,14 +389,14 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 <div className="w-full flex items-center justify-between pb-4 font-mono text-xs text-white/80">
                   <div className="flex items-center gap-3">
                     <span className="h-2 w-2 rounded-full bg-[#39FF14]" />
-                    <span>DIAPOSITIVE {String(activeImageIndex + 1).padStart(2, '0')} / {String(project.gallery.length).padStart(2, '0')}</span>
+                    <span className="uppercase tracking-wider font-semibold">{project.title}</span>
                   </div>
                   <button
                     onClick={() => setActiveImageIndex(null)}
                     className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <X className="h-4 w-4" />
-                    <span>FERMER (ESC)</span>
+                    <span>{lang === 'fr' ? 'FERMER (ESC)' : 'CLOSE (ESC)'}</span>
                   </button>
                 </div>
 

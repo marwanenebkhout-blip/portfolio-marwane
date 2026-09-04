@@ -99,7 +99,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
 
               {/* Subtitle & Bio placed under the avatar and name */}
               <div className="pt-3 sm:pt-4">
-                <p className="font-mono text-[11px] sm:text-xs md:text-sm font-bold tracking-wide sm:tracking-wider uppercase text-[#39FF14] whitespace-nowrap">
+                <p className="font-mono text-[11px] sm:text-xs md:text-sm font-bold tracking-wide sm:tracking-wider uppercase text-[#39FF14] break-words">
                   GRAPHIC DESIGNER // ART DIRECTOR // 3D & MOTION DESIGNER
                 </p>
                 <p className="text-xs text-white/60 mt-2.5 max-w-xl font-light leading-relaxed">

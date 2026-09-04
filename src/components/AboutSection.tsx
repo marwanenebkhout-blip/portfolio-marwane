@@ -55,7 +55,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
         {/* Left: Bio & Manifesto (7 Cols) */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="p-8 rounded-xl bg-[#111113] border border-white/10 relative overflow-hidden shadow-2xl">
+          <div className="p-5 sm:p-8 rounded-xl bg-[#111113] border border-white/10 relative overflow-hidden shadow-2xl">
             <div className="flex items-center gap-4 mb-6 pb-4 border-b border-white/10">
               <div className="relative h-14 w-14 shrink-0 flex items-center justify-center">
                 <img
@@ -113,7 +113,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
         </div>
 
         {/* Right: Software Matrix (5 Cols) */}
-        <div className="lg:col-span-5 p-6 sm:p-8 rounded-xl bg-[#111113] border border-white/10 flex flex-col justify-between shadow-2xl">
+        <div className="lg:col-span-5 p-5 sm:p-8 rounded-xl bg-[#111113] border border-white/10 flex flex-col justify-between shadow-2xl">
           <div>
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
               <h3 className="font-mono text-xs font-bold text-white/60 uppercase tracking-[0.2em] flex items-center gap-2">
