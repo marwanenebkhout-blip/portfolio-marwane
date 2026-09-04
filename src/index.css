@@ -41,12 +41,12 @@
     --neon-green: #39FF14;
     --neon-blue: #007BFF;
     --neon-magenta: #FF00FF;
-    --bg-dark: #080808;
+    --bg-dark: #000000;
   }
 
   html, body {
     font-family: var(--font-body);
-    background-color: #080808;
+    background-color: #000000;
     color: #E0E0E0;
   }
 
@@ -78,7 +78,7 @@
   height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #080808;
+  background: #000000;
 }
 ::-webkit-scrollbar-thumb {
   background: #1e1e22;
@@ -98,7 +98,7 @@
 /* Scanline / CRT overlay */
 .scanlines {
   background: linear-gradient(
-    rgba(8, 8, 8, 0) 50%, 
+    rgba(0, 0, 0, 0) 50%, 
     rgba(0, 0, 0, 0.35) 50%
   ), linear-gradient(
     90deg,

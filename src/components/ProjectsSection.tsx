@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Project, CursorMode } from '../types';
 import { projects } from '../data/projects';
+import { localizeProject } from '../data/projectsTranslations';
+import { useLanguage } from '../context/LanguageContext';
 import { audio } from '../utils/audio';
-import { ArrowUpRight, Layers, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { ArrowUpRight, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProjectsSectionProps {
   onSelectProject: (project: Project) => void;
@@ -14,51 +16,18 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
   onSelectProject,
   setCursorMode,
 }) => {
-  // Default to 2 (project 03) so user immediately sees the stacked layout
-  const [activeIdx, setActiveIdx] = useState<number>(projects.length >= 3 ? 2 : 0);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const isManualSelectionRef = useRef<boolean>(false);
-  const manualTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { lang, t } = useLanguage();
+  const [activeIdx, setActiveIdx] = useState<number>(0);
 
-  const filteredProjects = projects;
+  const filteredProjects = useMemo(() => {
+    return projects.map((p) => localizeProject(p, lang));
+  }, [lang]);
 
   const selectProjectByIndex = useCallback((idx: number) => {
     if (idx < 0 || idx >= filteredProjects.length) return;
     audio.playMechanicalClick();
     setActiveIdx(idx);
-
-    // Block scroll-sync momentarily so manual clicks are sticky and comfortable
-    isManualSelectionRef.current = true;
-    if (manualTimeoutRef.current) clearTimeout(manualTimeoutRef.current);
-    manualTimeoutRef.current = setTimeout(() => {
-      isManualSelectionRef.current = false;
-    }, 1000);
   }, [filteredProjects.length]);
-
-  // Scroll sync: smoothly advance through cards as user scrolls through the track
-  useEffect(() => {
-    const handleScroll = () => {
-      if (isManualSelectionRef.current || !trackRef.current) return;
-      const rect = trackRef.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const totalScrollable = rect.height - windowHeight;
-
-      if (totalScrollable > 150) {
-        const scrolled = -rect.top;
-        const progress = Math.max(0, Math.min(1, scrolled / totalScrollable));
-        const newIndex = Math.min(
-          filteredProjects.length - 1,
-          Math.floor(progress * filteredProjects.length)
-        );
-        if (newIndex !== activeIdx && newIndex >= 0) {
-          setActiveIdx(newIndex);
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [activeIdx, filteredProjects.length]);
 
   const handleLiveProjectClick = (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -88,22 +57,21 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
   return (
     <section
       id="work"
-      ref={trackRef}
       onKeyDown={handleKeyDown}
       tabIndex={0}
-      className="relative outline-none min-h-[140vh] sm:min-h-[180vh] lg:min-h-[220vh] py-12 sm:py-16 px-4 sm:px-6 max-w-7xl mx-auto"
+      className="relative outline-none py-12 sm:py-16 px-4 sm:px-6 max-w-7xl mx-auto"
     >
-      {/* Sticky Showcase Stage: remains locked in viewport while user scrolls through the stack */}
-      <div className="sticky top-16 sm:top-20 z-10">
+      {/* Showcase Stage */}
+      <div className="relative z-10">
         {/* Section Header */}
         <div className="flex items-end justify-between mb-6 pb-4 border-b border-white/10">
           <div>
             <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#39FF14] tracking-[0.3em] uppercase mb-1.5">
               <Layers className="h-4 w-4" />
-              <span>01 // SÉLECTION DE PROJETS & ÉTUDES DE CAS</span>
+              <span>{t('projects.badge')}</span>
             </div>
             <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter italic text-white">
-              Selected Works
+              {t('projects.title')}
             </h2>
           </div>
 
@@ -113,7 +81,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
               onClick={handlePrev}
               disabled={activeIdx === 0}
               className="p-1.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
-              title="Projet précédent"
+              title={t('projects.prev')}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -121,7 +89,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
               onClick={handleNext}
               disabled={activeIdx === filteredProjects.length - 1}
               className="p-1.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
-              title="Projet suivant"
+              title={t('projects.next')}
             >
               <ChevronRight className="h-4 w-4" />
             </button>

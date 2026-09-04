@@ -1,5 +1,6 @@
 import React from 'react';
-import { personalInfo, experiences, education, softwareStack, skillGroups, languages } from '../data/config';
+import { getPersonalInfo, getExperiences, getEducation, getSoftwareStack, languages } from '../data/config';
+import { useLanguage } from '../context/LanguageContext';
 import { audio } from '../utils/audio';
 import { X, Printer, Download, Mail, Phone, MapPin, Award, CheckCircle } from 'lucide-react';
 import avatarImg from '../assets/images/MOI MINI V2.png';
@@ -11,7 +12,17 @@ interface CVModalProps {
 }
 
 export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
+  const { lang, t } = useLanguage();
   if (!isOpen) return null;
+
+  const personalInfo = getPersonalInfo(lang);
+  const experiences = getExperiences(lang);
+  const education = getEducation(lang);
+  const softwareStack = getSoftwareStack(lang);
+
+  const displayLanguages = lang === 'fr' 
+    ? ['Français (Natif)', 'Anglais (Professionnel)']
+    : ['French (Native)', 'English (Professional)'];
 
   const handlePrint = () => {
     audio.playMechanicalClick();
@@ -31,7 +42,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between px-6 py-4 bg-[#161619] border-b border-white/10 sticky top-0 z-10">
           <div className="flex items-center gap-2 font-mono text-xs text-white/80">
             <span className="h-2 w-2 rounded-full bg-[#39FF14]" />
-            <span className="font-bold tracking-wider uppercase">CURRICULUM VITAE // MARWANE NEBKHOUT</span>
+            <span className="font-bold tracking-wider uppercase">CURRICULUM VITAE // {personalInfo.name}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -40,7 +51,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs font-mono text-white transition-colors cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">IMPRIMER / PDF</span>
+              <span className="hidden sm:inline">{lang === 'fr' ? 'IMPRIMER / PDF' : 'PRINT / PDF'}</span>
             </button>
             <button
               onClick={() => {
@@ -48,7 +59,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
                 onClose();
               }}
               className="p-1.5 rounded bg-[#39FF14] text-black hover:shadow-[0_0_12px_#39FF14] transition-all cursor-pointer"
-              title="Fermer"
+              title={t('modal.close')}
             >
               <X className="h-4 w-4" />
             </button>
@@ -56,7 +67,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Printable CV Container */}
-        <div className="p-8 sm:p-12 space-y-10 max-h-[80vh] overflow-y-auto font-sans bg-[#080808]">
+        <div className="p-8 sm:p-12 space-y-10 max-h-[80vh] overflow-y-auto font-sans bg-black">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-8 border-b border-white/15">
             <div className="space-y-3">
@@ -122,7 +133,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
           <div>
             <h2 className="font-mono text-xs font-bold text-white/50 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-[#39FF14]" />
-              <span>EXPÉRIENCES PROFESSIONNELLES</span>
+              <span>{t('cv.experienceTitle')}</span>
             </h2>
 
             <div className="space-y-6">
@@ -153,7 +164,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
             {/* Education */}
             <div>
               <h2 className="font-mono text-xs font-bold text-white/50 uppercase tracking-[0.2em] mb-4">
-                FORMATION & DIPLÔMES
+                {t('cv.educationTitle')}
               </h2>
               <div className="space-y-3">
                 {education.map((edu, idx) => (
@@ -172,7 +183,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
             {/* Software Stack */}
             <div>
               <h2 className="font-mono text-xs font-bold text-white/50 uppercase tracking-[0.2em] mb-4">
-                STACK & LOGICIELS
+                {t('cv.stackTitle')}
               </h2>
               <div className="flex flex-wrap gap-1.5">
                 {softwareStack.map((s) => (
@@ -188,16 +199,16 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
               {/* Languages */}
               <div className="mt-6 pt-5 border-t border-white/10">
                 <h2 className="font-mono text-xs font-bold text-white/50 uppercase tracking-[0.2em] mb-3">
-                  LANGUES
+                  {t('cv.languagesTitle')}
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {languages.map((lang) => (
+                  {displayLanguages.map((l) => (
                     <span
-                      key={lang}
+                      key={l}
                       className="px-3 py-1.5 rounded bg-[#161619] font-mono text-[11px] text-white/90 border border-white/10 flex items-center gap-2"
                     >
                       <span className="h-1.5 w-1.5 rounded-full bg-[#39FF14] shrink-0" />
-                      <span>{lang}</span>
+                      <span>{l}</span>
                     </span>
                   ))}
                 </div>

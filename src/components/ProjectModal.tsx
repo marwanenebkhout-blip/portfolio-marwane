@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Project, CursorMode } from '../types';
 import { projects } from '../data/projects';
 import { audio } from '../utils/audio';
+import { useLanguage } from '../context/LanguageContext';
+import { localizeProject } from '../data/projectsTranslations';
 import { X, ArrowLeft, ArrowRight, CheckCircle2, Award, Calendar, UserCheck, Wrench, Sparkles, Box, Maximize2, ZoomIn, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 
 interface ProjectModalProps {
@@ -12,11 +14,16 @@ interface ProjectModalProps {
 }
 
 export const ProjectModal: React.FC<ProjectModalProps> = ({
-  project,
+  project: rawProject,
   onClose,
   onSelectProject,
   setCursorMode,
 }) => {
+  const { lang, t } = useLanguage();
+  const project = useMemo(() => {
+    return rawProject ? localizeProject(rawProject, lang) : null;
+  }, [rawProject, lang]);
+
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(true);
@@ -102,7 +109,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           <div className="flex items-center gap-3">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: project.accentColor }} />
             <span className="font-mono text-xs font-bold text-white/80 uppercase tracking-widest">
-              DOSSIER PROJET // #{String(currentIndex + 1).padStart(2, '0')}
+              {t('modal.projectFile')} // #{String(currentIndex + 1).padStart(2, '0')}
             </span>
             <span className="hidden sm:inline-block px-2.5 py-0.5 rounded bg-black/60 font-mono text-[10px] text-[#39FF14] border border-white/10">
               {project.category}
@@ -114,7 +121,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             <button
               onClick={handlePrev}
               className="p-2 rounded bg-black/50 border border-white/10 hover:border-white/30 text-white/70 hover:text-white transition-colors cursor-pointer"
-              title="Projet précédent (Flèche gauche)"
+              title={t('modal.prev')}
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
@@ -122,7 +129,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             <button
               onClick={handleNext}
               className="p-2 rounded bg-black/50 border border-white/10 hover:border-white/30 text-white/70 hover:text-white transition-colors cursor-pointer"
-              title="Projet suivant (Flèche droite)"
+              title={t('modal.next')}
             >
               <ArrowRight className="h-4 w-4" />
             </button>
@@ -133,7 +140,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 onClose();
               }}
               className="p-2 rounded bg-[#39FF14] text-black font-bold hover:shadow-[0_0_15px_#39FF14] transition-all ml-2 cursor-pointer"
-              title="Fermer (Échap)"
+              title={t('modal.close')}
             >
               <X className="h-4 w-4" />
             </button>
@@ -221,7 +228,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           {project.metrics && project.metrics.length > 0 && (
             <div>
               <h3 className="font-mono text-xs font-bold text-white/50 uppercase tracking-[0.2em] mb-3">
-                IMPACT & PERFORMANCES
+                {t('modal.metricsTitle')}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {project.metrics.map((m, idx) => (
@@ -244,7 +251,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             <div className="lg:col-span-7 space-y-4">
               <h3 className="font-display text-xl font-bold text-white flex items-center gap-2 uppercase tracking-tight">
                 <Sparkles className="h-4 w-4 text-[#39FF14]" />
-                <span>Concept & Démarche Artistique</span>
+                <span>{t('modal.conceptTitle')}</span>
               </h3>
               <p className="text-white/70 text-sm sm:text-base leading-relaxed font-light">
                 {project.description}
@@ -256,7 +263,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               <div>
                 <h4 className="font-mono text-xs font-bold text-white/60 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
                   <UserCheck className="h-3.5 w-3.5 text-[#007BFF]" />
-                  <span>RÔLES & EXPERTISES</span>
+                  <span>{t('modal.rolesTitle')}</span>
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
                   {project.role.map((r) => (
@@ -274,7 +281,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               <div>
                 <h4 className="font-mono text-xs font-bold text-white/60 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
                   <Wrench className="h-3.5 w-3.5 text-[#FF00FF]" />
-                  <span>LOGICIELS & STACK</span>
+                  <span>{t('modal.stackTitle')}</span>
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
                   {project.tools.map((tool) => (
@@ -294,7 +301,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           {project.deliverables && (
             <div>
               <h3 className="font-mono text-xs font-bold text-white/50 uppercase tracking-[0.2em] mb-4">
-                LIVRABLES CLÉS
+                {t('modal.deliverablesTitle')}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {project.deliverables.map((item, idx) => (
@@ -316,10 +323,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="font-mono text-xs font-bold text-white/50 uppercase tracking-[0.2em] flex items-center gap-2">
                   <Sparkles className="h-3.5 w-3.5 text-[#39FF14]" />
-                  <span>GALERIE DE RENDUS & DIAPOSITIVES ({project.gallery.length})</span>
+                  <span>{t('modal.galleryTitle')} ({project.gallery.length})</span>
                 </h3>
                 <span className="font-mono text-[10px] text-white/40">
-                  CLIQUEZ SUR UNE IMAGE POUR AGRANDIR
+                  {lang === 'fr' ? 'CLIQUEZ SUR UNE IMAGE POUR AGRANDIR' : 'CLICK ON AN IMAGE TO ENLARGE'}
                 </span>
               </div>
 

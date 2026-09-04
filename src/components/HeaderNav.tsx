@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Globe } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 interface HeaderNavProps {
   onNavigate: (sectionId: string) => void;
@@ -13,6 +14,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onOpenContact,
 }) => {
   const [scrolled, setScrolled] = useState(false);
+  const { lang, toggleLang, t } = useLanguage();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -23,17 +25,17 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   }, []);
 
   const navLinks = [
-    { id: 'hero', label: 'HOME' },
-    { id: 'work', label: 'WORK' },
-    { id: 'about', label: 'ABOUT' },
-    { id: 'contact', label: 'CONTACT' },
+    { id: 'hero', label: t('nav.home') },
+    { id: 'work', label: t('nav.work') },
+    { id: 'about', label: t('nav.about') },
+    { id: 'contact', label: t('nav.contact') },
   ];
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
         scrolled
-          ? 'bg-[#080808]/90 backdrop-blur-md border-b border-white/10 py-3.5 shadow-2xl'
+          ? 'bg-black/90 backdrop-blur-md border-b border-white/10 py-3.5 shadow-2xl'
           : 'bg-transparent py-5 sm:py-6'
       }`}
     >
@@ -44,7 +46,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             onNavigate('hero');
           }}
           className="group flex items-baseline gap-0.5 focus:outline-none cursor-pointer"
-          aria-label="Retour à l'accueil"
+          aria-label={lang === 'fr' ? "Retour à l'accueil" : "Back to home"}
         >
           <span className="font-black text-2xl tracking-tighter text-[#39FF14] drop-shadow-[0_0_12px_rgba(57,255,20,0.6)] font-sans">
             MN
@@ -58,7 +60,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             const isActive = activeSection === link.id;
             return (
               <button
-                key={`${link.label}-${idx}`}
+                key={`${link.id}-${idx}`}
                 onClick={() => {
                   onNavigate(link.id);
                 }}
@@ -74,18 +76,21 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           })}
         </nav>
 
-        {/* Right: Français / Anglais language pill */}
+        {/* Right: Language switch button (Français / English) */}
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111113] border border-white/15 text-white/90 font-mono text-xs font-medium tracking-wider select-none shadow-sm"
-            title="Langues / Languages: Français / Anglais"
+          <button
+            onClick={toggleLang}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111113] hover:bg-[#1a1a1f] border border-white/15 hover:border-[#39FF14]/50 text-white/90 hover:text-white font-mono text-xs font-medium tracking-wider cursor-pointer transition-all shadow-sm group"
+            title={t('nav.langTitle')}
+            aria-label={t('nav.langTitle')}
           >
-            <Globe className="h-3.5 w-3.5 text-[#39FF14]" />
-            <span>Français / Anglais</span>
-          </div>
+            <Globe className="h-3.5 w-3.5 text-[#39FF14] group-hover:rotate-12 transition-transform duration-300" />
+            <span>{t('nav.langToggle')}</span>
+          </button>
         </div>
       </div>
     </header>
   );
 };
+
 

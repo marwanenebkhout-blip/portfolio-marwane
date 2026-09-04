@@ -43,7 +43,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
   }, [logIndex, onComplete]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#080808] text-[#E0E0E0] p-6 select-none scanlines">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black text-[#E0E0E0] p-6 select-none scanlines">
       <div className="w-full max-w-lg space-y-6">
         {/* Terminal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10">

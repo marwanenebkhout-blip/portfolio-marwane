@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, useInView } from 'motion/react';
-import { Play, Volume2, VolumeX } from 'lucide-react';
+import { Play } from 'lucide-react';
 import ordiCodeVideo from '../assets/images/ORDI CODE.mp4';
 
 interface PortfolioVideoSectionProps {
@@ -19,7 +19,6 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
 
   const [hasStarted, setHasStarted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
 
   // Play video automatically when scrolled into view and keep looping
   useEffect(() => {
@@ -37,15 +36,6 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
       }
     }
   }, [isInView]);
-
-  const toggleSound = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (videoRef.current) {
-      const nextMuted = !isMuted;
-      videoRef.current.muted = nextMuted;
-      setIsMuted(nextMuted);
-    }
-  };
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -82,28 +72,12 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
             ref={videoRef}
             src={ordiCodeVideo}
             autoPlay
-            muted={isMuted}
+            muted
             playsInline
             preload="auto"
             loop
             className="w-full h-full object-contain block select-none bg-black"
           />
-
-          {/* Sound Mute/Unmute Toggle in Corner */}
-          <div className="absolute bottom-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <button
-              onClick={toggleSound}
-              className="p-2.5 rounded-full bg-[#111113]/80 hover:bg-[#1f1f23] border border-white/15 hover:border-[#39FF14]/50 text-white hover:text-[#39FF14] transition-all backdrop-blur-sm cursor-pointer shadow-lg"
-              title={isMuted ? 'Activer le son' : 'Couper le son'}
-              aria-label={isMuted ? 'Activer le son' : 'Couper le son'}
-            >
-              {isMuted ? (
-                <VolumeX className="w-4 h-4" />
-              ) : (
-                <Volume2 className="w-4 h-4 text-[#39FF14]" />
-              )}
-            </button>
-          </div>
 
           {/* Manual Play Trigger (fallback if autoplay blocked or paused) */}
           {(!hasStarted || !isPlaying) && (

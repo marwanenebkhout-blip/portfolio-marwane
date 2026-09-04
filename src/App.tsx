@@ -3,7 +3,7 @@ import { Project, CursorMode } from './types';
 import { personalInfo } from './data/config';
 import { projects } from './data/projects';
 import { audio } from './utils/audio';
-import { CustomCursor } from './components/CustomCursor';
+import { useLanguage } from './context/LanguageContext';
 import { HeaderNav } from './components/HeaderNav';
 import { HeroCore3D } from './components/3d/HeroCore3D';
 import { MechanicalFooterKeyboard } from './components/3d/MechanicalFooterKeyboard';
@@ -18,6 +18,7 @@ import titleImage from './assets/images/TITRE V2.png';
 import { ArrowDown, Sparkles, Terminal, Cpu, ShieldCheck, Heart } from 'lucide-react';
 
 export default function App() {
+  const { lang, t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
   const [cursorMode, setCursorModeState] = useState<CursorMode>('DEFAULT');
@@ -76,10 +77,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#07080b] text-[#e2e8f0] relative selection:bg-[#00ff66] selection:text-black">
-      {/* Custom Precision Cursor */}
-      <CustomCursor mode={cursorMode} hoverText={cursorText} />
-
+    <div className="min-h-screen bg-black text-[#e2e8f0] relative selection:bg-[#00ff66] selection:text-black">
       {/* Cybernetic Scanlines and Noise FX */}
       <div className="fixed inset-0 scanlines opacity-40 pointer-events-none z-30" />
       <div className="fixed inset-0 bg-noise opacity-15 pointer-events-none z-10" />
@@ -104,7 +102,7 @@ export default function App() {
               className="text-[10px] uppercase font-mono tracking-[0.3em]"
               style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
             >
-              — SCROLL
+              {t('hero.scroll')}
             </span>
             <div className="h-4 w-4 rounded-full border border-[#39FF14]/50 flex items-center justify-center">
               <div className="h-1.5 w-1.5 rounded-full bg-[#39FF14] animate-pulse" />
@@ -121,7 +119,7 @@ export default function App() {
               <div className="flex items-center gap-2.5 mb-3 sm:mb-4">
                 <span className="h-2 w-2 rounded-full bg-[#39FF14] shadow-[0_0_8px_#39FF14] animate-pulse" />
                 <span className="font-mono text-xs sm:text-[13px] font-semibold text-white/90 uppercase tracking-[0.2em]">
-                  AVAILABLE FOR FREELANCE
+                  {t('hero.status')}
                 </span>
               </div>
 
@@ -136,9 +134,9 @@ export default function App() {
 
               {/* Stacked Roles */}
               <div className="mt-4 sm:mt-5 space-y-1 font-mono text-xs sm:text-sm md:text-base font-semibold text-white/70 tracking-widest uppercase">
-                <div>GRAPHIC DESIGNER</div>
-                <div>ART DIRECTOR</div>
-                <div>3D & MOTION DESIGNER</div>
+                <div>{t('hero.role1')}</div>
+                <div>{t('hero.role2')}</div>
+                <div>{t('hero.role3')}</div>
               </div>
 
               {/* Bio Box with Green Corner Brackets + Explore Link */}
@@ -150,7 +148,7 @@ export default function App() {
                   <div className="absolute -bottom-[1px] -right-[1px] w-2 h-2 border-b-2 border-r-2 border-[#39FF14]" />
                   
                   <p className="text-xs sm:text-sm text-white/75 leading-relaxed font-sans">
-                    I craft bold visuals and interactive experiences that connect brands with people.
+                    {t('hero.bio')}
                   </p>
                 </div>
 
@@ -163,7 +161,7 @@ export default function App() {
                   className="group inline-flex items-center gap-2 font-mono text-xs font-bold text-white/90 hover:text-[#39FF14] transition-colors uppercase tracking-wider cursor-pointer whitespace-nowrap"
                 >
                   <span className="border-b border-white/30 group-hover:border-[#39FF14] pb-0.5">
-                    EXPLORE MY WORK
+                    {t('hero.explore')}
                   </span>
                   <span className="text-[#39FF14] group-hover:translate-x-1 transition-transform">
                     &gt;
@@ -199,12 +197,12 @@ export default function App() {
       </main>
 
       {/* Global Site Footer with 3D Mechanical Keyboard Console */}
-      <footer id="contact" className="relative z-20 bg-[#060709] border-t border-white/10 pt-16 pb-12 px-4 sm:px-6">
+      <footer id="contact" className="relative z-20 bg-black border-t border-white/10 pt-16 pb-12 px-4 sm:px-6">
         <div className="max-w-[1400px] mx-auto space-y-12">
           {/* Header Title for Footer Hardware Console */}
           <div className="text-center">
             <h3 className="font-display text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter italic text-white">
-              Connect & Links
+              {t('footer.title')}
             </h3>
           </div>
 
@@ -222,7 +220,7 @@ export default function App() {
               <span className="font-bold text-white tracking-wider">MARWANE NEBKHOUT</span>
               <span>© {new Date().getFullYear()}</span>
               <span className="hidden sm:inline text-white/20">•</span>
-              <span className="text-[#39FF14]/80">DIRECTION ARTISTIQUE & EXPÉRIENCES 3D</span>
+              <span className="text-[#39FF14]/80">{t('footer.subtitle')}</span>
             </div>
           </div>
         </div>

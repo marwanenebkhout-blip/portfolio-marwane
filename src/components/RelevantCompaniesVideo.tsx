@@ -1,9 +1,11 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Briefcase } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useLanguage } from '../context/LanguageContext';
 import boxVideo from '../assets/images/BOX ICONES.mp4';
 
 export const RelevantCompaniesVideo: React.FC = () => {
+  const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasPlayedInCurrentView, setHasPlayedInCurrentView] = useState(false);
@@ -70,7 +72,7 @@ export const RelevantCompaniesVideo: React.FC = () => {
       {/* Title with matching typography to "Formation & Diplômes" */}
       <h3 className="font-display text-xl font-bold uppercase tracking-tight text-white flex items-center gap-2">
         <Briefcase className="h-4 w-4 text-[#39FF14]" />
-        <span>Entreprises Pertinentes</span>
+        <span>{t('about.companiesTitle')}</span>
       </h3>
 
       {/* Floating Video without outer borders */}
@@ -86,7 +88,7 @@ export const RelevantCompaniesVideo: React.FC = () => {
         }}
         className="w-full flex items-center justify-center cursor-pointer py-2"
         onClick={handleClick}
-        title="Cliquer pour rejouer l'animation"
+        title={t('about.replayVideo')}
       >
         <div className="relative w-full max-w-[380px] aspect-[922/756] flex items-center justify-center">
           <video

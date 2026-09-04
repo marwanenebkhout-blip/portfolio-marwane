@@ -43,6 +43,17 @@ export interface Project {
   }[];
   interactive3DType?: 'cube' | 'torus' | 'cylinder' | 'sphere' | 'crystal';
   featured?: boolean;
+  en?: {
+    subtitle?: string;
+    summary?: string;
+    description?: string;
+    tags?: string[];
+    role?: string[];
+    metrics?: { label: string; value: string }[];
+    deliverables?: string[];
+    videoCaption?: string;
+    galleryCaptions?: string[];
+  };
 }
 
 export interface SocialLinks {

@@ -1,6 +1,8 @@
 {
-  "name": "MARWANE NEBKHOUT — Art Director & 3D Visual Experience",
-  "description": "Portfolio interactif et immersif de Marwane Nebkhout, Graphic Designer & Directeur Artistique spécialisé en 3D, Motion Design et expériences numériques d'avant-garde.",
+  "name": "Remix Marwane Nebkhout — Interactive Portfolio",
+  "description": "Portfolio 3D interactif et immersif de Marwane Nebkhout, Directeur Artistique, Graphic Designer, 3D \u0026 Motion Designer. Expérience WebGL rétro-futuriste avec console mécanique 3D.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

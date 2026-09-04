@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { personalInfo, softwareStack, skillGroups, experiences, education, socialLinks } from '../data/config';
+import { getPersonalInfo, getSoftwareStack, skillGroups, getExperiences, getEducation, socialLinks } from '../data/config';
+import { useLanguage } from '../context/LanguageContext';
 import { audio } from '../utils/audio';
 import { FileText, Download, Briefcase, GraduationCap, Sparkles, Terminal, CheckCircle, ExternalLink, Cpu } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -11,7 +12,13 @@ interface AboutSectionProps {
 }
 
 export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => {
+  const { lang, t } = useLanguage();
   const [activeSkillGroup, setActiveSkillGroup] = useState(0);
+
+  const personalInfo = getPersonalInfo(lang);
+  const experiences = getExperiences(lang);
+  const education = getEducation(lang);
+  const softwareStack = getSoftwareStack(lang);
 
   const handleDownloadCV = () => {
     audio.playMechanicalClick();
@@ -26,10 +33,10 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
         <div>
           <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#FF00FF] tracking-[0.3em] uppercase mb-2">
             <Terminal className="h-4 w-4" />
-            <span>03 // DOSSIER BIOGRAPHIQUE & COMPÉTENCES</span>
+            <span>{t('about.badge')}</span>
           </div>
           <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter italic text-white">
-            About me
+            {t('about.title')}
           </h2>
         </div>
 
@@ -39,7 +46,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
           className="mt-4 md:mt-0 flex items-center gap-2 px-4 py-2.5 rounded bg-[#111113] border border-white/20 text-white hover:border-[#39FF14] hover:text-[#39FF14] font-mono text-xs font-bold tracking-wider transition-all shadow-lg group cursor-pointer"
         >
           <FileText className="h-4 w-4 text-[#39FF14] group-hover:scale-110 transition-transform" />
-          <span>VOIR / TÉLÉCHARGER LE CV (PDF)</span>
+          <span>{t('about.cvBtn')}</span>
           <Download className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -82,7 +89,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
                   {personalInfo.yearsOfExperience}
                 </span>
                 <span className="block font-mono text-[10px] text-white/40 uppercase tracking-widest mt-1">
-                  Années d'Expérience
+                  {t('about.stat1Label')}
                 </span>
               </div>
               <div className="flex flex-col items-center justify-center">
@@ -90,7 +97,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
                   {personalInfo.completedProjects}
                 </span>
                 <span className="block font-mono text-[10px] text-white/40 uppercase tracking-widest mt-1">
-                  Digital / Print / Motion
+                  {t('about.stat2Label')}
                 </span>
               </div>
               <div className="flex flex-col items-center justify-center">
@@ -98,7 +105,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
                   {personalInfo.awards}
                 </span>
                 <span className="block font-mono text-[10px] text-white/40 uppercase tracking-widest mt-1">
-                  Pipeline intégré
+                  {t('about.stat3Label')}
                 </span>
               </div>
             </div>
@@ -111,7 +118,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
               <h3 className="font-mono text-xs font-bold text-white/60 uppercase tracking-[0.2em] flex items-center gap-2">
                 <Cpu className="h-4 w-4 text-[#39FF14]" />
-                <span>LOGICIELS & COMPÉTENCES</span>
+                <span>{t('about.softwareTitle')}</span>
               </h3>
               <span className="font-mono text-[10px] text-[#39FF14] font-bold">PRO LEVEL</span>
             </div>
@@ -136,7 +143,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
 
           <div className="mt-4 pt-3 border-t border-white/10 font-mono text-[11px] text-white/40 flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-[#39FF14] animate-pulse shrink-0" />
-            <span className="truncate">Pipeline Hybride Design, 3D Temps Réel & IA Générative</span>
+            <span className="truncate">{t('about.softwareSubtitle')}</span>
           </div>
         </div>
       </div>
@@ -147,7 +154,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
         <div className="lg:col-span-7 space-y-6">
           <h3 className="font-display text-xl font-bold uppercase tracking-tight text-white flex items-center gap-2">
             <Briefcase className="h-4 w-4 text-[#39FF14]" />
-            <span>Parcours Professionnel</span>
+            <span>{t('about.expTitle')}</span>
           </h3>
 
           <div className="space-y-4">
@@ -192,7 +199,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
           <div className="space-y-6">
             <h3 className="font-display text-xl font-bold uppercase tracking-tight text-white flex items-center gap-2">
               <GraduationCap className="h-4 w-4 text-[#007BFF]" />
-              <span>Formation & Diplômes</span>
+              <span>{t('about.eduTitle')}</span>
             </h3>
 
             <div className="space-y-4">
@@ -224,3 +231,4 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
     </section>
   );
 };
+
