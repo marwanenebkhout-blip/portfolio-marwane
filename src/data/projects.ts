@@ -13,7 +13,7 @@ import sweepn10Communication from '../assets/images/sweepn_slide_10_communicatio
 import anthem01Cover from '../assets/images/IMG_7658.jpeg';
 import anthem02Portrait from '../assets/images/IMG_7657.jpeg';
 import anthem03Collection from '../assets/images/IMG_7656.jpeg';
-import recylingVideo from '../assets/images/ScreenRecording_08-03-2026 13-01-08_1 (1) (1).mov';
+import recylingVideo from '../assets/images/recyling_video.mp4';
 import recyling01Billboard from '../assets/images/IMG_7474.jpeg';
 import recyling02AppUI from '../assets/images/IMG_7472.jpeg';
 import recyling03Blender3D from '../assets/images/IMG_7484.jpeg';

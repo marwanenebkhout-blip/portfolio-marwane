@@ -328,7 +328,6 @@ const KeyboardScene = ({
       hoverInfo: 'TÉLÉCHARGER LE CV',
       action: () => {
         onOpenCV();
-        confetti({ particleCount: 50, spread: 70, origin: { y: 0.85 } });
       },
     },
     {
@@ -645,7 +644,7 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
   setCursorMode,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isInView, setIsInView] = useState(false);
+  const [isInView, setIsInView] = useState(true);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -654,7 +653,7 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
       ([entry]) => {
         setIsInView(entry.isIntersecting);
       },
-      { rootMargin: '300px' }
+      { rootMargin: '800px' }
     );
     observer.observe(el);
     return () => observer.disconnect();

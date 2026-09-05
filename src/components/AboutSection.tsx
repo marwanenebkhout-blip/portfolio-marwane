@@ -3,9 +3,8 @@ import { getPersonalInfo, getSoftwareStack, skillGroups, getExperiences, getEduc
 import { useLanguage } from '../context/LanguageContext';
 import { audio } from '../utils/audio';
 import { FileText, Download, Briefcase, GraduationCap, Sparkles, Terminal, CheckCircle, ExternalLink, Cpu } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { RelevantCompaniesVideo } from './RelevantCompaniesVideo';
-import moiMiniImg from '../assets/images/MOI MINI V2.png';
+import moiMiniImg from '../assets/images/MOI_MINI_V2.webp';
 
 interface AboutSectionProps {
   onOpenCVModal: () => void;
@@ -22,7 +21,6 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
 
   const handleDownloadCV = () => {
     audio.playMechanicalClick();
-    confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
     onOpenCVModal();
   };
 

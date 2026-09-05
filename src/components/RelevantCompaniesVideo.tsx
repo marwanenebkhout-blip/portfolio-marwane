@@ -3,6 +3,7 @@ import { Briefcase } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import boxVideo from '../assets/images/BOX ICONES.mp4';
+import boxPoster from '../assets/images/box_poster.webp';
 
 export const RelevantCompaniesVideo: React.FC = () => {
   const { t } = useLanguage();
@@ -16,17 +17,19 @@ export const RelevantCompaniesVideo: React.FC = () => {
     if (!video) return;
 
     video.currentTime = 0;
-    video
-      .play()
-      .then(() => {
-        setHasPlayedInCurrentView(true);
-      })
-      .catch((err) => {
-        console.warn('Video autoplay prevented:', err);
-      });
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setHasPlayedInCurrentView(true);
+        })
+        .catch((err) => {
+          console.warn('Video autoplay prevented:', err);
+        });
+    }
   }, []);
 
-  // Intersection Observer: detect when user scrolls to this section
+  // Intersection Observer: detect when user scrolls close to or into this section
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -35,13 +38,13 @@ export const RelevantCompaniesVideo: React.FC = () => {
       (entries) => {
         entries.forEach((entry) => {
           const video = videoRef.current;
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.3) {
-            // When arriving at this section: play once if not already played
+          if (entry.isIntersecting) {
+            // When arriving at or near this section: play once if not already played
             if (!hasPlayedInCurrentView) {
               playOnce();
             }
-          } else if (entry.intersectionRatio <= 0.05) {
-            // When scrolled out of view (e.g. going back up to the top): reset so it replays next time
+          } else if (entry.intersectionRatio <= 0.0) {
+            // When completely scrolled out of view: reset so it replays next time
             setHasPlayedInCurrentView(false);
             if (video) {
               video.pause();
@@ -51,7 +54,8 @@ export const RelevantCompaniesVideo: React.FC = () => {
         });
       },
       {
-        threshold: [0.0, 0.1, 0.3, 0.6, 1.0],
+        rootMargin: '150px 0px',
+        threshold: [0.0, 0.1, 0.5],
       }
     );
 
@@ -90,13 +94,14 @@ export const RelevantCompaniesVideo: React.FC = () => {
         onClick={handleClick}
         title={t('about.replayVideo')}
       >
-        <div className="relative w-full max-w-[380px] aspect-[922/756] flex items-center justify-center">
+        <div className="relative w-full max-w-[380px] aspect-[922/756] flex items-center justify-center bg-transparent">
           <video
             ref={videoRef}
             src={boxVideo}
+            poster={boxPoster}
             playsInline
             muted
-            preload="none"
+            preload="auto"
             className="w-full h-full object-cover rounded-xl pointer-events-none drop-shadow-[0_15px_30px_rgba(0,0,0,0.85)]"
           />
         </div>

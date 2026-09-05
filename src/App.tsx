@@ -6,17 +6,17 @@ import { audio } from './utils/audio';
 import { useLanguage } from './context/LanguageContext';
 import { HeaderNav } from './components/HeaderNav';
 import { HeroCore3D } from './components/3d/HeroCore3D';
-import { MechanicalFooterKeyboard } from './components/3d/MechanicalFooterKeyboard';
 import { ProjectsSection } from './components/ProjectsSection';
 import { FloatingIconsField } from './components/3d/FloatingIconsField';
 import { AboutSection } from './components/AboutSection';
+import { MechanicalFooterKeyboard } from './components/3d/MechanicalFooterKeyboard';
 import { PortfolioVideoSection } from './components/PortfolioVideoSection';
-import titleImage from './assets/images/TITRE V2.png';
+import titleImage from './assets/images/TITRE_V2.webp';
 import { ArrowDown, Sparkles, Terminal, Cpu, ShieldCheck, Heart } from 'lucide-react';
 
-// Lazy load modals so their scripts, images and confetti aren't loaded in initial bundle
+import { CVModal } from './components/CVModal';
+
 const ProjectModal = lazy(() => import('./components/ProjectModal').then((m) => ({ default: m.ProjectModal })));
-const CVModal = lazy(() => import('./components/CVModal').then((m) => ({ default: m.CVModal })));
 
 export default function App() {
   const { lang, t } = useLanguage();

@@ -37,7 +37,7 @@ interface SingleIconProps {
 const MODEL_URL = '/models/v3_icone.glb';
 const DRACO_DECODER_PATH = '/draco/';
 
-// Preload GLTF model with local DRACO decoder
+// Preload GLTF model with local DRACO decoder so assets are instantly ready
 useGLTF.preload(MODEL_URL, DRACO_DECODER_PATH);
 
 const SingleFloatingIcon: React.FC<SingleIconProps> = ({
@@ -291,7 +291,7 @@ const SoftBackdropGlow: React.FC = () => {
 
 export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }) => {
   const sectionRef = useRef<HTMLElement>(null);
-  const [isInView, setIsInView] = useState(false);
+  const [isInView, setIsInView] = useState(true);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -300,7 +300,7 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
       ([entry]) => {
         setIsInView(entry.isIntersecting);
       },
-      { rootMargin: '300px' }
+      { rootMargin: '800px' }
     );
     observer.observe(el);
     return () => observer.disconnect();

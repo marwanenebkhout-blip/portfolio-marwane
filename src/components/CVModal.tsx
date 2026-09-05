@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { getPersonalInfo, getExperiences, getEducation, getSoftwareStack, languages } from '../data/config';
 import { useLanguage } from '../context/LanguageContext';
 import { audio } from '../utils/audio';
 import { X, Printer, Download, Mail, Phone, MapPin, Award, CheckCircle } from 'lucide-react';
-import avatarImg from '../assets/images/MOI MINI V2.png';
-import titreCvImg from '../assets/images/TITRE CV 2.png';
+import confetti from 'canvas-confetti';
+import avatarImg from '../assets/images/MOI_MINI_V2.webp';
+import titreCvImg from '../assets/images/TITRE_CV_2.webp';
 
 interface CVModalProps {
   isOpen: boolean;
@@ -13,6 +14,23 @@ interface CVModalProps {
 
 export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
   const { lang, t } = useLanguage();
+
+  useEffect(() => {
+    if (isOpen) {
+      // Trigger confetti exactly when the CV modal is displayed on screen
+      const animFrame = requestAnimationFrame(() => {
+        confetti({
+          particleCount: 55,
+          spread: 75,
+          origin: { y: 0.45 },
+          zIndex: 99999,
+          colors: ['#39FF14', '#00F0FF', '#FF003C', '#FFE600', '#FFFFFF'],
+        });
+      });
+      return () => cancelAnimationFrame(animFrame);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const personalInfo = getPersonalInfo(lang);
@@ -31,11 +49,11 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl overflow-y-auto animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl my-8 bg-[#111113] border border-white/15 rounded-2xl shadow-2xl overflow-hidden text-white"
+        className="relative w-full max-w-4xl my-8 bg-[#111113] border border-white/15 rounded-2xl shadow-2xl overflow-hidden text-white animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Control Bar */}

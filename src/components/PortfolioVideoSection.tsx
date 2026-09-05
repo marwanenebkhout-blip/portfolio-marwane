@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, useInView } from 'motion/react';
 import { Play } from 'lucide-react';
 import ordiCodeVideo from '../assets/images/ORDI CODE.mp4';
+import ordiPoster from '../assets/images/ordi_code_poster.webp';
 
 interface PortfolioVideoSectionProps {
   setCursorMode?: (mode: any, text?: string) => void;
@@ -74,6 +75,7 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
           <video
             ref={videoRef}
             src={ordiCodeVideo}
+            poster={ordiPoster}
             autoPlay
             muted
             playsInline

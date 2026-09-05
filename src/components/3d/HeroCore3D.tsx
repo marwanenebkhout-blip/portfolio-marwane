@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { CursorMode } from '../../types';
 import avatarCharacterVideo from '../../assets/avatar_character_loop.mp4';
+import avatarPoster from '../../assets/avatar_character_poster.webp';
 
 interface HeroCore3DProps {
   onSelectSection?: (sectionId: string) => void;
@@ -48,10 +49,12 @@ export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode }) => {
       <video
         ref={videoRef}
         src={avatarCharacterVideo}
+        poster={avatarPoster}
         autoPlay
         loop
         muted
         playsInline
+        preload="auto"
         className="w-full h-full object-cover object-center pointer-events-none scale-100 sm:scale-105 lg:scale-108 transition-transform duration-500"
       />
     </div>
