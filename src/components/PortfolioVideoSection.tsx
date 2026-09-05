@@ -20,7 +20,7 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
   const [hasStarted, setHasStarted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Play video automatically when scrolled into view and keep looping
+  // Play video automatically when scrolled into view and pause when scrolled away to save GPU/battery
   useEffect(() => {
     if (isInView && videoRef.current) {
       setHasStarted(true);
@@ -34,8 +34,11 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
             console.log('Video autoplay prevented on scroll:', err);
           });
       }
+    } else if (!isInView && videoRef.current && hasStarted) {
+      videoRef.current.pause();
+      setIsPlaying(false);
     }
-  }, [isInView]);
+  }, [isInView, hasStarted]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -74,7 +77,7 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
             autoPlay
             muted
             playsInline
-            preload="auto"
+            preload="none"
             loop
             className="w-full h-full object-contain block select-none bg-black"
           />

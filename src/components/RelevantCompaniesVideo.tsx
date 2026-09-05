@@ -96,7 +96,7 @@ export const RelevantCompaniesVideo: React.FC = () => {
             src={boxVideo}
             playsInline
             muted
-            preload="auto"
+            preload="none"
             className="w-full h-full object-cover rounded-xl pointer-events-none drop-shadow-[0_15px_30px_rgba(0,0,0,0.85)]"
           />
         </div>

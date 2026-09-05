@@ -231,7 +231,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                 src={mainVisual}
                                 alt={project.title}
                                 referrerPolicy="no-referrer"
-                                loading="eager"
+                                loading="lazy"
                                 decoding="async"
                                 className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-300"
                               />
@@ -266,7 +266,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                   src={secondaryTop}
                                   alt={`${project.title} visual 1`}
                                   referrerPolicy="no-referrer"
-                                  loading="eager"
+                                  loading="lazy"
                                   decoding="async"
                                   className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                 />
@@ -299,7 +299,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                   src={secondaryBottom}
                                   alt={`${project.title} visual 2`}
                                   referrerPolicy="no-referrer"
-                                  loading="eager"
+                                  loading="lazy"
                                   decoding="async"
                                   className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                 />

@@ -8,6 +8,7 @@ interface HeroCore3DProps {
 }
 
 export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -18,10 +19,28 @@ export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode }) => {
         // Autoplay fallback
       });
     }
+
+    // Pause playback when hero is scrolled out of view to save GPU/CPU cycles
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!videoRef.current) return;
+        if (entry.isIntersecting) {
+          videoRef.current.play().catch(() => {});
+        } else {
+          videoRef.current.pause();
+        }
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   return (
     <div 
+      ref={containerRef}
       className="relative w-full max-w-[420px] sm:max-w-[500px] md:max-w-[560px] lg:max-w-[640px] xl:max-w-[720px] 2xl:max-w-[780px] aspect-square flex items-center justify-center select-none overflow-hidden"
       onMouseEnter={() => setCursorMode?.('HOVER', '360°')}
       onMouseLeave={() => setCursorMode?.('DEFAULT')}

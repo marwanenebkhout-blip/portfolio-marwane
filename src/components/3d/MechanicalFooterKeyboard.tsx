@@ -644,8 +644,27 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
   onOpenContact,
   setCursorMode,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting);
+      },
+      { rootMargin: '300px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="w-full max-w-[1380px] mx-auto select-none overflow-hidden">
+    <div 
+      ref={containerRef}
+      className="w-full max-w-[1380px] mx-auto select-none overflow-hidden"
+    >
       {/* 3D WebGL Canvas Container with optimized responsive height */}
       <div className="relative w-full h-[260px] sm:h-[360px] md:h-[440px] lg:h-[500px] overflow-hidden flex items-center justify-center">
         
@@ -654,9 +673,10 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[450px] sm:max-w-[750px] lg:max-w-[900px] h-[150px] sm:h-[280px] bg-[#39FF14]/12 blur-[60px] sm:blur-[90px] rounded-full pointer-events-none" />
 
         <Canvas
+          frameloop={isInView ? 'always' : 'never'}
           shadows
           camera={{ position: [0, 8.5, 6.2], fov: 42 }}
-          dpr={[1, 2]}
+          dpr={[1, 1.5]}
           gl={{
             antialias: true,
             alpha: true,

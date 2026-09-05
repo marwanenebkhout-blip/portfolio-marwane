@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, Suspense, Component, ReactNode } from 'react';
+import React, { useRef, useState, useEffect, useMemo, Suspense, Component, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, Preload } from '@react-three/drei';
 import * as THREE from 'three';
@@ -290,8 +290,28 @@ const SoftBackdropGlow: React.FC = () => {
 };
 
 export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }) => {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isInView, setIsInView] = useState(false);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting);
+      },
+      { rootMargin: '300px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section id="floating-icons" className="relative w-full max-w-7xl mx-auto py-10 sm:py-16 px-2 sm:px-4 select-none overflow-hidden">
+    <section 
+      ref={sectionRef}
+      id="floating-icons" 
+      className="relative w-full max-w-7xl mx-auto py-10 sm:py-16 px-2 sm:px-4 select-none overflow-hidden"
+    >
       {/* Soft Ambient Background Glow strictly behind the 3D Canvas */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center -z-10 overflow-hidden">
         <div 
@@ -301,11 +321,12 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
 
       {/* Seamless Transparent 3D Stage without frame or borders */}
       <div className="relative w-full h-[360px] sm:h-[480px] lg:h-[650px] overflow-hidden z-0">
-        {/* R3F Canvas */}
+        {/* R3F Canvas - paused when out of view */}
         <Canvas
+          frameloop={isInView ? 'always' : 'never'}
           camera={{ position: [0, 0, 5.4], fov: 45 }}
           className="w-full h-full"
-          dpr={[1, 2]}
+          dpr={[1, 1.5]}
           gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         >
           {/* Clean Neutral Studio Lighting on Front of Icons */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Project, CursorMode } from './types';
 import { personalInfo } from './data/config';
 import { projects } from './data/projects';
@@ -8,18 +8,18 @@ import { HeaderNav } from './components/HeaderNav';
 import { HeroCore3D } from './components/3d/HeroCore3D';
 import { MechanicalFooterKeyboard } from './components/3d/MechanicalFooterKeyboard';
 import { ProjectsSection } from './components/ProjectsSection';
-import { ProjectModal } from './components/ProjectModal';
 import { FloatingIconsField } from './components/3d/FloatingIconsField';
 import { AboutSection } from './components/AboutSection';
-import { CVModal } from './components/CVModal';
-import { LoadingScreen } from './components/LoadingScreen';
 import { PortfolioVideoSection } from './components/PortfolioVideoSection';
 import titleImage from './assets/images/TITRE V2.png';
 import { ArrowDown, Sparkles, Terminal, Cpu, ShieldCheck, Heart } from 'lucide-react';
 
+// Lazy load modals so their scripts, images and confetti aren't loaded in initial bundle
+const ProjectModal = lazy(() => import('./components/ProjectModal').then((m) => ({ default: m.ProjectModal })));
+const CVModal = lazy(() => import('./components/CVModal').then((m) => ({ default: m.CVModal })));
+
 export default function App() {
   const { lang, t } = useLanguage();
-  const [isLoading, setIsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
   const [cursorMode, setCursorModeState] = useState<CursorMode>('DEFAULT');
   const [cursorText, setCursorText] = useState<string | undefined>(undefined);
@@ -49,32 +49,35 @@ export default function App() {
     }
   };
 
-  // Section observer for active nav indicator
+  // Section observer for active nav indicator with requestAnimationFrame throttle to prevent layout thrashing
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      const sections = ['hero', 'portfolio-reel', 'work', 'about', 'contact', 'console-keyboard'];
-      const scrollPosition = window.scrollY + 200;
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const sections = ['hero', 'portfolio-reel', 'work', 'about', 'contact', 'console-keyboard'];
+          const scrollPosition = window.scrollY + 200;
 
-      for (const section of sections) {
-        const el = document.getElementById(section);
-        if (el) {
-          const top = el.offsetTop;
-          const height = el.offsetHeight;
-          if (scrollPosition >= top && scrollPosition < top + height) {
-            setActiveSection(section);
-            break;
+          for (const section of sections) {
+            const el = document.getElementById(section);
+            if (el) {
+              const top = el.offsetTop;
+              const height = el.offsetHeight;
+              if (scrollPosition >= top && scrollPosition < top + height) {
+                setActiveSection(section);
+                break;
+              }
+            }
           }
-        }
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  if (isLoading) {
-    return <LoadingScreen onComplete={() => setIsLoading(false)} />;
-  }
 
   return (
     <div className="min-h-screen bg-black text-[#e2e8f0] relative selection:bg-[#00ff66] selection:text-black overflow-x-hidden w-full max-w-full">
@@ -226,19 +229,24 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Project Case Study Fullscreen Modal */}
-      <ProjectModal
-        project={selectedProject}
-        onClose={() => setSelectedProject(null)}
-        onSelectProject={(p) => setSelectedProject(p)}
-        setCursorMode={setCursorMode}
-      />
+      {/* Project Case Study Fullscreen Modal & CV Viewer (Lazy Loaded) */}
+      <Suspense fallback={null}>
+        {selectedProject && (
+          <ProjectModal
+            project={selectedProject}
+            onClose={() => setSelectedProject(null)}
+            onSelectProject={(p) => setSelectedProject(p)}
+            setCursorMode={setCursorMode}
+          />
+        )}
 
-      {/* CV / Resume Viewer Modal */}
-      <CVModal
-        isOpen={isCVModalOpen}
-        onClose={() => setIsCVModalOpen(false)}
-      />
+        {isCVModalOpen && (
+          <CVModal
+            isOpen={isCVModalOpen}
+            onClose={() => setIsCVModalOpen(false)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

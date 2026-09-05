@@ -61,6 +61,8 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenCVModal }) => 
                 <img
                   src={moiMiniImg}
                   alt={personalInfo.name}
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-contain drop-shadow-md"
                 />
               </div>

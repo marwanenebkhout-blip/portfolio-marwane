@@ -217,6 +217,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   src={project.heroImage}
                   alt={project.title}
                   referrerPolicy="no-referrer"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover max-h-[420px]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
@@ -350,6 +352,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                             loop
                             muted
                             playsInline
+                            preload="metadata"
                             className="w-full h-full object-cover scale-[1.01] group-hover:scale-105 transition-transform duration-500"
                           />
                         ) : (
@@ -359,6 +362,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                             referrerPolicy="no-referrer"
                             className="w-full h-full object-cover scale-[1.01] group-hover:scale-105 transition-transform duration-500"
                             loading="lazy"
+                            decoding="async"
                           />
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
