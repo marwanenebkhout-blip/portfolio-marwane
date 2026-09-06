@@ -240,12 +240,10 @@ export default function App() {
           />
         )}
 
-        {isCVModalOpen && (
-          <CVModal
-            isOpen={isCVModalOpen}
-            onClose={() => setIsCVModalOpen(false)}
-          />
-        )}
+        <CVModal
+          isOpen={isCVModalOpen}
+          onClose={() => setIsCVModalOpen(false)}
+        />
       </Suspense>
     </div>
   );

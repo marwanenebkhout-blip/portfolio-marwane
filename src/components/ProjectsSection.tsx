@@ -1,10 +1,59 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Project, CursorMode } from '../types';
 import { projects } from '../data/projects';
 import { localizeProject } from '../data/projectsTranslations';
 import { useLanguage } from '../context/LanguageContext';
 import { audio } from '../utils/audio';
 import { ArrowUpRight, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
+
+interface ControlledVideoProps {
+  src: string;
+  isActive: boolean;
+  isSectionInView: boolean;
+  className?: string;
+  isIkea?: boolean;
+}
+
+const ControlledVideo: React.FC<ControlledVideoProps> = ({
+  src,
+  isActive,
+  isSectionInView,
+  className,
+  isIkea,
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = true;
+    v.defaultMuted = true;
+    if (isIkea) {
+      v.volume = 0;
+    }
+
+    if (isActive && isSectionInView) {
+      const playPromise = v.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {});
+      }
+    } else {
+      v.pause();
+    }
+  }, [isActive, isSectionInView, isIkea]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      loop
+      muted
+      playsInline
+      preload="metadata"
+      className={className}
+    />
+  );
+};
 
 interface ProjectsSectionProps {
   onSelectProject: (project: Project) => void;
@@ -17,6 +66,21 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
 }) => {
   const { lang, t } = useLanguage();
   const [activeIdx, setActiveIdx] = useState<number>(0);
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isSectionInView, setIsSectionInView] = useState(true);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsSectionInView(entry.isIntersecting);
+      },
+      { rootMargin: '350px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const filteredProjects = useMemo(() => {
     return projects.map((p) => localizeProject(p, lang));
@@ -63,6 +127,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
 
   return (
     <section
+      ref={sectionRef}
       id="work"
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -204,111 +269,110 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                   <div className="overflow-hidden">
                     {shouldMountMedia && (
                       <div className="px-3 sm:px-5 md:px-6 pb-3 sm:pb-5 md:pb-6 pt-1">
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3.5 items-stretch h-auto md:h-[320px] lg:h-[370px] xl:h-[400px]">
-                          
-                          {/* Left Large Visual (7 Cols) */}
-                          <div
-                            onClick={() => {
-                              audio.playMechanicalClick();
-                              onSelectProject(project);
-                            }}
-                            onMouseEnter={() => setCursorMode('OPEN', 'CASE STUDY')}
-                            onMouseLeave={() => setCursorMode('DEFAULT')}
-                            className="md:col-span-7 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black relative aspect-[16/10] md:aspect-auto md:h-full group/media cursor-pointer transform-gpu"
-                          >
-                            {project.videoUrl ? (
-                              <video
-                                src={project.videoUrl}
-                                autoPlay
-                                loop
-                                muted
-                                playsInline
-                                preload="metadata"
-                                className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-300"
-                              />
-                            ) : (
-                              <img
-                                src={mainVisual}
-                                alt={project.title}
-                                referrerPolicy="no-referrer"
-                                loading={idx === 0 ? 'eager' : 'lazy'}
-                                decoding="async"
-                                className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-300"
-                              />
-                            )}
-                            <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 pointer-events-none" />
-                          </div>
+                        {(() => {
+                          const isIkea = project.id === 'ikea-motion-showcase' || project.slug === 'ikea-motion-showcase' || project.title.toLowerCase().includes('ikea');
+                          return (
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3.5 items-stretch h-auto md:h-[320px] lg:h-[370px] xl:h-[400px]">
+                              
+                              {/* Left Large Visual (7 Cols) */}
+                              <div
+                                onClick={() => {
+                                  audio.playMechanicalClick();
+                                  onSelectProject(project);
+                                }}
+                                onMouseEnter={() => setCursorMode('OPEN', 'CASE STUDY')}
+                                onMouseLeave={() => setCursorMode('DEFAULT')}
+                                className="md:col-span-7 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black relative aspect-[16/10] md:aspect-auto md:h-full group/media cursor-pointer transform-gpu"
+                              >
+                                {project.videoUrl ? (
+                                  <ControlledVideo
+                                    src={project.videoUrl}
+                                    isActive={isActive}
+                                    isSectionInView={isSectionInView}
+                                    isIkea={isIkea}
+                                    className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-300"
+                                  />
+                                ) : (
+                                  <img
+                                    src={mainVisual}
+                                    alt={project.title}
+                                    referrerPolicy="no-referrer"
+                                    loading={idx === 0 ? 'eager' : 'lazy'}
+                                    decoding="async"
+                                    className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-300"
+                                  />
+                                )}
+                                <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 pointer-events-none" />
+                              </div>
 
-                          {/* Right 2 Stacked Visuals (5 Cols) */}
-                          <div className="md:col-span-5 grid grid-cols-2 md:flex md:flex-col gap-2.5 sm:gap-3 md:h-full">
-                            {/* Top Visual */}
-                            <div
-                              onClick={() => {
-                                audio.playMechanicalClick();
-                                onSelectProject(project);
-                              }}
-                              onMouseEnter={() => setCursorMode('OPEN', 'CASE STUDY')}
-                              onMouseLeave={() => setCursorMode('DEFAULT')}
-                              className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer transform-gpu"
-                            >
-                              {secondaryTop && (secondaryTop.endsWith('.mp4') || secondaryTop.endsWith('.mov') || secondaryTop.endsWith('.webm')) ? (
-                                <video
-                                  src={secondaryTop}
-                                  autoPlay
-                                  loop
-                                  muted
-                                  playsInline
-                                  preload="metadata"
-                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
-                                />
-                              ) : (
-                                <img
-                                  src={secondaryTop}
-                                  alt={`${project.title} visual 1`}
-                                  referrerPolicy="no-referrer"
-                                  loading={idx === 0 ? 'eager' : 'lazy'}
-                                  decoding="async"
-                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
-                                />
-                              )}
-                              <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 pointer-events-none" />
+                              {/* Right 2 Stacked Visuals (5 Cols) */}
+                              <div className="md:col-span-5 grid grid-cols-2 md:flex md:flex-col gap-2.5 sm:gap-3 md:h-full">
+                                {/* Top Visual */}
+                                <div
+                                  onClick={() => {
+                                    audio.playMechanicalClick();
+                                    onSelectProject(project);
+                                  }}
+                                  onMouseEnter={() => setCursorMode('OPEN', 'CASE STUDY')}
+                                  onMouseLeave={() => setCursorMode('DEFAULT')}
+                                  className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer transform-gpu"
+                                >
+                                  {secondaryTop && (secondaryTop.endsWith('.mp4') || secondaryTop.endsWith('.mov') || secondaryTop.endsWith('.webm')) ? (
+                                    <ControlledVideo
+                                      src={secondaryTop}
+                                      isActive={isActive}
+                                      isSectionInView={isSectionInView}
+                                      isIkea={isIkea}
+                                      className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
+                                    />
+                                  ) : (
+                                    <img
+                                      src={secondaryTop}
+                                      alt={`${project.title} visual 1`}
+                                      referrerPolicy="no-referrer"
+                                      loading={idx === 0 ? 'eager' : 'lazy'}
+                                      decoding="async"
+                                      className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
+                                    />
+                                  )}
+                                  <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 pointer-events-none" />
+                                </div>
+
+                                {/* Bottom Visual */}
+                                <div
+                                  onClick={() => {
+                                    audio.playMechanicalClick();
+                                    onSelectProject(project);
+                                  }}
+                                  onMouseEnter={() => setCursorMode('OPEN', 'CASE STUDY')}
+                                  onMouseLeave={() => setCursorMode('DEFAULT')}
+                                  className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer transform-gpu"
+                                >
+                                  {secondaryBottom && (secondaryBottom.endsWith('.mp4') || secondaryBottom.endsWith('.mov') || secondaryBottom.endsWith('.webm')) ? (
+                                    <ControlledVideo
+                                      src={secondaryBottom}
+                                      isActive={isActive}
+                                      isSectionInView={isSectionInView}
+                                      isIkea={isIkea}
+                                      className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
+                                    />
+                                  ) : (
+                                    <img
+                                      src={secondaryBottom}
+                                      alt={`${project.title} visual 2`}
+                                      referrerPolicy="no-referrer"
+                                      loading={idx === 0 ? 'eager' : 'lazy'}
+                                      decoding="async"
+                                      className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
+                                    />
+                                  )}
+                                  <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 pointer-events-none" />
+                                </div>
+                              </div>
+
                             </div>
-
-                            {/* Bottom Visual */}
-                            <div
-                              onClick={() => {
-                                audio.playMechanicalClick();
-                                onSelectProject(project);
-                              }}
-                              onMouseEnter={() => setCursorMode('OPEN', 'CASE STUDY')}
-                              onMouseLeave={() => setCursorMode('DEFAULT')}
-                              className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer transform-gpu"
-                            >
-                              {secondaryBottom && (secondaryBottom.endsWith('.mp4') || secondaryBottom.endsWith('.mov') || secondaryBottom.endsWith('.webm')) ? (
-                                <video
-                                  src={secondaryBottom}
-                                  autoPlay
-                                  loop
-                                  muted
-                                  playsInline
-                                  preload="metadata"
-                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
-                                />
-                              ) : (
-                                <img
-                                  src={secondaryBottom}
-                                  alt={`${project.title} visual 2`}
-                                  referrerPolicy="no-referrer"
-                                  loading={idx === 0 ? 'eager' : 'lazy'}
-                                  decoding="async"
-                                  className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
-                                />
-                              )}
-                              <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 pointer-events-none" />
-                            </div>
-                          </div>
-
-                        </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

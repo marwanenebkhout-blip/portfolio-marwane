@@ -12,28 +12,32 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   
-  // Detect when scrolled into view (triggers when 20% visible)
+  // Detect when scrolled into view (triggers when 15% visible)
   const isInView = useInView(containerRef, {
-    once: true,
-    amount: 0.2,
+    once: false,
+    amount: 0.15,
   });
 
+  const [hasBeenInView, setHasBeenInView] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   // Play video automatically when scrolled into view and pause when scrolled away to save GPU/battery
   useEffect(() => {
-    if (isInView && videoRef.current) {
+    if (isInView) {
+      setHasBeenInView(true);
       setHasStarted(true);
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-          })
-          .catch((err) => {
-            console.log('Video autoplay prevented on scroll:', err);
-          });
+      if (videoRef.current) {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsPlaying(true);
+            })
+            .catch((err) => {
+              console.log('Video autoplay prevented on scroll:', err);
+            });
+        }
       }
     } else if (!isInView && videoRef.current && hasStarted) {
       videoRef.current.pause();
@@ -65,7 +69,7 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
         {/* Pure Video Element on Solid Black with Infinite Loop */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+          animate={hasBeenInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="relative w-full aspect-video flex items-center justify-center overflow-hidden bg-black group cursor-pointer"
           onClick={togglePlay}

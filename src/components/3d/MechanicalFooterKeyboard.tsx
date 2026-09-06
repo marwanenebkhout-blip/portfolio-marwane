@@ -107,9 +107,11 @@ const Key3D = ({
   const targetY = isPressed ? -0.22 : isHovered ? 0.06 : 0;
 
   useFrame((_, delta) => {
-    currentY.current += (targetY - currentY.current) * Math.min(1, delta * 30);
-    if (meshRef.current) {
-      meshRef.current.position.y = currentY.current;
+    if (Math.abs(targetY - currentY.current) > 0.0005) {
+      currentY.current += (targetY - currentY.current) * Math.min(1, delta * 30);
+      if (meshRef.current) {
+        meshRef.current.position.y = currentY.current;
+      }
     }
   });
 
@@ -644,11 +646,18 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
   setCursorMode,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isInView, setIsInView] = useState(true);
+  const [isInView, setIsInView] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
+    // Check if already in or near view on initial load
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 800 && rect.bottom > -800) {
+      setIsInView(true);
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsInView(entry.isIntersecting);
@@ -672,14 +681,13 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[450px] sm:max-w-[750px] lg:max-w-[900px] h-[150px] sm:h-[280px] bg-[#39FF14]/12 blur-[60px] sm:blur-[90px] rounded-full pointer-events-none" />
 
         <Canvas
-          frameloop={isInView ? 'always' : 'never'}
-          shadows
+          frameloop={isInView ? 'always' : 'demand'}
           camera={{ position: [0, 8.5, 6.2], fov: 42 }}
-          dpr={[1, 1.5]}
+          dpr={[1, 1.25]}
           gl={{
             antialias: true,
             alpha: true,
-            powerPreference: 'high-performance',
+            powerPreference: 'default',
           }}
         >
           {/* Studio Lighting Rig */}
@@ -689,9 +697,6 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
           <directionalLight
             position={[5, 12, 8]}
             intensity={2.2}
-            castShadow
-            shadow-mapSize={[1024, 1024]}
-            shadow-bias={-0.0001}
           />
 
           {/* Subtle Cool Rim Light from Back-Left */}

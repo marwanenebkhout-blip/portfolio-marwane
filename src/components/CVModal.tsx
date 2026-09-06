@@ -1,11 +1,22 @@
-import React, { useEffect } from 'react';
-import { getPersonalInfo, getExperiences, getEducation, getSoftwareStack, languages } from '../data/config';
+import React, { useEffect, useRef } from 'react';
+import { getPersonalInfo, getExperiences, getEducation, getSoftwareStack } from '../data/config';
 import { useLanguage } from '../context/LanguageContext';
 import { audio } from '../utils/audio';
 import { X, Printer, Download, Mail, Phone, MapPin, Award, CheckCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import avatarImg from '../assets/images/MOI_MINI_V2.webp';
-import titreCvImg from '../assets/images/TITRE_CV_2.webp';
+import titreCvImg from '../assets/images/TITRE CV 2.png';
+
+// Pre-load and pre-decode images immediately so they are cached in GPU memory
+if (typeof window !== 'undefined') {
+  const p1 = new Image();
+  p1.src = titreCvImg;
+  p1.decode?.().catch(() => {});
+
+  const p2 = new Image();
+  p2.src = avatarImg;
+  p2.decode?.().catch(() => {});
+}
 
 interface CVModalProps {
   isOpen: boolean;
@@ -14,9 +25,43 @@ interface CVModalProps {
 
 export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
   const { lang, t } = useLanguage();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const cvContentRef = useRef<HTMLDivElement>(null);
+
+  const resetScroll = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+    if (cvContentRef.current) {
+      cvContentRef.current.scrollTop = 0;
+    }
+  };
+
+  const handleClose = () => {
+    audio.playKeyHover();
+    onClose();
+  };
 
   useEffect(() => {
     if (isOpen) {
+      // Reset both outer overlay and inner content scroll positions to the top upon opening
+      resetScroll();
+
+      // Schedule check on next frame so opening is guaranteed to be at the top
+      const raf1 = requestAnimationFrame(resetScroll);
+
+      // Prevent body scrolling while modal is open
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+
+      // Keyboard ESC handler
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          handleClose();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+
       // Trigger confetti exactly when the CV modal is displayed on screen
       const animFrame = requestAnimationFrame(() => {
         confetti({
@@ -27,11 +72,23 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
           colors: ['#39FF14', '#00F0FF', '#FF003C', '#FFE600', '#FFFFFF'],
         });
       });
-      return () => cancelAnimationFrame(animFrame);
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        window.removeEventListener('keydown', handleKeyDown);
+        cancelAnimationFrame(raf1);
+        cancelAnimationFrame(animFrame);
+        // Note: Do NOT reset scroll during close transition; let it fade out at current position
+      };
+    } else {
+      // Once the 200ms fade-out transition has completely ended and modal is hidden,
+      // reset scroll quietly in the background so next open starts cleanly at the top.
+      const timer = setTimeout(() => {
+        resetScroll();
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const personalInfo = getPersonalInfo(lang);
   const experiences = getExperiences(lang);
@@ -39,8 +96,8 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
   const softwareStack = getSoftwareStack(lang);
 
   const displayLanguages = lang === 'fr' 
-    ? ['Français (Natif)', 'Anglais (Professionnel)']
-    : ['French (Native)', 'English (Professional)'];
+    ? ['Français (Natif)', 'Anglais (courant)', 'Espagnol (courant)', 'Arabe (dialecte)']
+    : ['French (Native)', 'English (Fluent)', 'Spanish (Fluent)', 'Arabic (Dialect)'];
 
   const handlePrint = () => {
     audio.playMechanicalClick();
@@ -49,13 +106,20 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl overflow-y-auto animate-in fade-in duration-200"
-      onClick={onClose}
+      ref={scrollContainerRef}
+      className={`fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6 bg-black/90 backdrop-blur-xl transition-all duration-200 ${
+        isOpen ? 'opacity-100 pointer-events-auto visible' : 'opacity-0 pointer-events-none invisible'
+      }`}
+      onClick={handleClose}
+      aria-hidden={!isOpen}
     >
-      <div
-        className="relative w-full max-w-4xl my-8 bg-[#111113] border border-white/15 rounded-2xl shadow-2xl overflow-hidden text-white animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="min-h-full flex items-start sm:items-center justify-center py-4 sm:py-8">
+        <div
+          className={`relative w-full max-w-4xl bg-[#111113] border border-white/15 rounded-2xl shadow-2xl overflow-hidden text-white transition-all duration-200 ${
+            isOpen ? 'scale-100 opacity-100' : 'scale-98 opacity-0'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Top Control Bar */}
         <div className="flex items-center justify-between px-6 py-4 bg-[#161619] border-b border-white/10 sticky top-0 z-10">
           <div className="flex items-center gap-2 font-mono text-xs text-white/80">
@@ -72,10 +136,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
               <span className="hidden sm:inline">{lang === 'fr' ? 'IMPRIMER / PDF' : 'PRINT / PDF'}</span>
             </button>
             <button
-              onClick={() => {
-                audio.playKeyHover();
-                onClose();
-              }}
+              onClick={handleClose}
               className="p-1.5 rounded bg-[#39FF14] text-black hover:shadow-[0_0_12px_#39FF14] transition-all cursor-pointer"
               title={t('modal.close')}
             >
@@ -85,7 +146,10 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Printable CV Container */}
-        <div className="p-8 sm:p-12 space-y-10 max-h-[80vh] overflow-y-auto font-sans bg-black">
+        <div
+          ref={cvContentRef}
+          className="p-8 sm:p-12 space-y-10 max-h-[80vh] overflow-y-auto font-sans bg-black"
+        >
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-8 border-b border-white/15">
             <div className="space-y-3">
@@ -96,6 +160,8 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
                   <img
                     src={avatarImg}
                     alt={personalInfo.name}
+                    loading="eager"
+                    decoding="sync"
                     className="absolute pointer-events-none drop-shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
                     style={{
                       width: '149.3%',
@@ -110,6 +176,8 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
                   <img
                     src={titreCvImg}
                     alt={personalInfo.name}
+                    loading="eager"
+                    decoding="sync"
                     className="h-16 sm:h-20 md:h-24 lg:h-28 w-auto object-contain max-w-[360px] sm:max-w-lg md:max-w-xl drop-shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
                   />
                 </div>
@@ -159,7 +227,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
                 <div key={idx} className="space-y-2">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between">
                     <h3 className="font-display text-base font-bold text-white tracking-tight">
-                      {exp.role} <span className="text-[#39FF14]">@ {exp.company}</span>
+                      {exp.role} <span className="text-[#39FF14]">{exp.company}</span>
                     </h3>
                     <span className="font-mono text-xs text-white/50">{exp.period}</span>
                   </div>
@@ -235,6 +303,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

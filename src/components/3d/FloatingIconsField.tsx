@@ -291,11 +291,18 @@ const SoftBackdropGlow: React.FC = () => {
 
 export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }) => {
   const sectionRef = useRef<HTMLElement>(null);
-  const [isInView, setIsInView] = useState(true);
+  const [isInView, setIsInView] = useState(false);
 
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
+
+    // Check if already in or near view on initial load
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 800 && rect.bottom > -800) {
+      setIsInView(true);
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsInView(entry.isIntersecting);
@@ -321,13 +328,13 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
 
       {/* Seamless Transparent 3D Stage without frame or borders */}
       <div className="relative w-full h-[360px] sm:h-[480px] lg:h-[650px] overflow-hidden z-0">
-        {/* R3F Canvas - paused when out of view */}
+        {/* R3F Canvas - idle 'demand' mode when far offscreen, active 'always' when near/in view */}
         <Canvas
-          frameloop={isInView ? 'always' : 'never'}
+          frameloop={isInView ? 'always' : 'demand'}
           camera={{ position: [0, 0, 5.4], fov: 45 }}
           className="w-full h-full"
-          dpr={[1, 1.5]}
-          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+          dpr={[1, 1.25]}
+          gl={{ antialias: true, alpha: true, powerPreference: 'default' }}
         >
           {/* Clean Neutral Studio Lighting on Front of Icons */}
           <ambientLight intensity={0.9} />

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Project, CursorMode } from '../types';
 import { projects } from '../data/projects';
 import { audio } from '../utils/audio';
@@ -29,6 +30,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const isIkea = project?.id === 'ikea-motion-showcase' || project?.slug === 'ikea-motion-showcase' || (project?.title ? project.title.toLowerCase().includes('ikea') : false);
+
   const toggleVideoPlay = () => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
@@ -41,7 +44,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   };
 
   const toggleVideoMute = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || isIkea) return;
     videoRef.current.muted = !videoRef.current.muted;
     setIsMuted(videoRef.current.muted);
   };
@@ -52,6 +55,15 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       videoRef.current.requestFullscreen();
     }
   };
+
+  useEffect(() => {
+    // Lock background scroll when modal or lightbox is active
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -177,7 +189,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     src={project.videoUrl}
                     autoPlay
                     loop
-                    muted={isMuted}
+                    muted={isIkea ? true : isMuted}
                     playsInline
                     className="w-full h-full object-cover"
                   />
@@ -191,13 +203,15 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     >
                       {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                     </button>
-                    <button
-                      onClick={toggleVideoMute}
-                      className="p-2 rounded-lg bg-white/10 hover:bg-white/25 text-white transition-colors cursor-pointer"
-                      title={isMuted ? "Activer le son" : "Couper le son"}
-                    >
-                      {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                    </button>
+                    {!isIkea && (
+                      <button
+                        onClick={toggleVideoMute}
+                        className="p-2 rounded-lg bg-white/10 hover:bg-white/25 text-white transition-colors cursor-pointer"
+                        title={isMuted ? "Activer le son" : "Couper le son"}
+                      >
+                        {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                      </button>
+                    )}
                     <button
                       onClick={handleFullscreenVideo}
                       className="p-2 rounded-lg bg-white/10 hover:bg-white/25 text-white transition-colors cursor-pointer"
@@ -325,7 +339,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="font-mono text-xs font-bold text-white/50 uppercase tracking-[0.2em] flex items-center gap-2">
                   <Sparkles className="h-3.5 w-3.5 text-[#39FF14]" />
-                  <span>{t('modal.galleryTitle')} ({project.gallery.length})</span>
+                  <span>{t('modal.galleryTitle')}</span>
                 </h3>
                 <span className="font-mono text-[10px] text-white/40">
                   {lang === 'fr' ? 'CLIQUEZ SUR UNE IMAGE POUR AGRANDIR' : 'CLICK ON AN IMAGE TO ENLARGE'}
@@ -380,75 +394,82 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           )}
 
           {/* Lightbox Zoom Modal for High-Resolution Slide Inspection */}
-          {activeImageIndex !== null && project.gallery && project.gallery[activeImageIndex] && (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-2xl"
-              onClick={() => setActiveImageIndex(null)}
-            >
+          {activeImageIndex !== null && project.gallery && project.gallery[activeImageIndex] &&
+            createPortal(
               <div
-                className="relative max-w-6xl w-full max-h-[90vh] flex flex-col items-center justify-center"
-                onClick={(e) => e.stopPropagation()}
+                className="fixed inset-0 z-[9999] w-screen h-screen flex items-center justify-center p-3 sm:p-6 md:p-8 bg-black select-none overflow-hidden"
+                onClick={() => setActiveImageIndex(null)}
               >
-                {/* Top Controls */}
-                <div className="w-full flex items-center justify-between pb-4 font-mono text-xs text-white/80">
-                  <div className="flex items-center gap-3">
-                    <span className="h-2 w-2 rounded-full bg-[#39FF14]" />
-                    <span className="uppercase tracking-wider font-semibold">{project.title}</span>
+                <div
+                  className="relative max-w-6xl w-full max-h-[94vh] flex flex-col items-center justify-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Top Controls */}
+                  <div className="w-full flex items-center justify-between pb-3 font-mono text-xs text-white/80">
+                    <div className="flex items-center gap-3">
+                      <span className="h-2 w-2 rounded-full bg-[#39FF14]" />
+                      <span className="uppercase tracking-wider font-semibold">{project.title}</span>
+                      <span className="text-white/40 font-mono">
+                        ({activeImageIndex + 1} / {project.gallery.length})
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setActiveImageIndex(null)}
+                      className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <X className="h-4 w-4" />
+                      <span>{lang === 'fr' ? 'FERMER (ESC)' : 'CLOSE (ESC)'}</span>
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setActiveImageIndex(null)}
-                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <X className="h-4 w-4" />
-                    <span>{lang === 'fr' ? 'FERMER (ESC)' : 'CLOSE (ESC)'}</span>
-                  </button>
+
+                  {/* Big Image/Video Display */}
+                  <div className="relative max-w-5xl w-auto max-h-[80vh] sm:max-h-[82vh] rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex items-center justify-center bg-black mx-auto">
+                    {project.gallery[activeImageIndex].url && (project.gallery[activeImageIndex].url.endsWith('.mp4') || project.gallery[activeImageIndex].url.endsWith('.mov') || project.gallery[activeImageIndex].url.endsWith('.webm')) ? (
+                      <video
+                        src={project.gallery[activeImageIndex].url}
+                        controls
+                        autoPlay
+                        muted={isIkea ? true : false}
+                        className="max-w-full max-h-[80vh] sm:max-h-[82vh] w-auto h-auto rounded-2xl object-contain block bg-black"
+                      />
+                    ) : (
+                      <img
+                        src={project.gallery[activeImageIndex].url}
+                        alt={project.gallery[activeImageIndex].caption}
+                        referrerPolicy="no-referrer"
+                        className="max-w-full max-h-[80vh] sm:max-h-[82vh] w-auto h-auto rounded-2xl object-contain block shadow-2xl bg-black"
+                      />
+                    )}
+
+                    {/* Left Arrow */}
+                    <button
+                      onClick={() => {
+                        audio.playMechanicalClick();
+                        setActiveImageIndex((activeImageIndex - 1 + project.gallery!.length) % project.gallery!.length);
+                      }}
+                      className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full bg-black/80 border border-white/25 hover:border-white/60 text-white hover:bg-black transition-all cursor-pointer backdrop-blur-md"
+                      title="Précédent"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+
+                    {/* Right Arrow */}
+                    <button
+                      onClick={() => {
+                        audio.playMechanicalClick();
+                        setActiveImageIndex((activeImageIndex + 1) % project.gallery!.length);
+                      }}
+                      className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full bg-black/80 border border-white/25 hover:border-white/60 text-white hover:bg-black transition-all cursor-pointer backdrop-blur-md"
+                      title="Suivant"
+                    >
+                      <ArrowRight className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
-
-                {/* Big Image/Video Display */}
-                <div className="relative max-w-5xl w-auto max-h-[82vh] rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex items-center justify-center bg-transparent mx-auto">
-                  {project.gallery[activeImageIndex].url && (project.gallery[activeImageIndex].url.endsWith('.mp4') || project.gallery[activeImageIndex].url.endsWith('.mov') || project.gallery[activeImageIndex].url.endsWith('.webm')) ? (
-                    <video
-                      src={project.gallery[activeImageIndex].url}
-                      controls
-                      autoPlay
-                      className="max-w-full max-h-[82vh] w-auto h-auto rounded-2xl object-cover block"
-                    />
-                  ) : (
-                    <img
-                      src={project.gallery[activeImageIndex].url}
-                      alt={project.gallery[activeImageIndex].caption}
-                      referrerPolicy="no-referrer"
-                      className="max-w-full max-h-[82vh] w-auto h-auto rounded-2xl object-cover block shadow-2xl"
-                    />
-                  )}
-
-                  {/* Left Arrow */}
-                  <button
-                    onClick={() => {
-                      audio.playMechanicalClick();
-                      setActiveImageIndex((activeImageIndex - 1 + project.gallery!.length) % project.gallery!.length);
-                    }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/70 border border-white/20 hover:border-white/50 text-white hover:bg-black/90 transition-all cursor-pointer backdrop-blur-sm"
-                    title="Précédent"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                  </button>
-
-                  {/* Right Arrow */}
-                  <button
-                    onClick={() => {
-                      audio.playMechanicalClick();
-                      setActiveImageIndex((activeImageIndex + 1) % project.gallery!.length);
-                    }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/70 border border-white/20 hover:border-white/50 text-white hover:bg-black/90 transition-all cursor-pointer backdrop-blur-sm"
-                    title="Suivant"
-                  >
-                    <ArrowRight className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+              </div>,
+              document.body
+            )
+          }
 
           {/* Footer Navigation CTA */}
           <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
