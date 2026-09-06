@@ -7,6 +7,20 @@ import { useLanguage } from '../context/LanguageContext';
 import { localizeProject } from '../data/projectsTranslations';
 import { X, ArrowLeft, ArrowRight, CheckCircle2, Award, Calendar, UserCheck, Wrench, Sparkles, Box, Maximize2, ZoomIn, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 
+const getMetricFontSize = (value: string) => {
+  const len = value.trim().length;
+  if (len > 22) {
+    return 'text-sm sm:text-base md:text-lg lg:text-xl leading-snug';
+  }
+  if (len > 15) {
+    return 'text-base sm:text-lg md:text-xl lg:text-2xl leading-snug';
+  }
+  if (len > 9) {
+    return 'text-lg sm:text-xl md:text-2xl lg:text-3xl leading-tight';
+  }
+  return 'text-2xl sm:text-3xl lg:text-4xl leading-none';
+};
+
 interface ProjectModalProps {
   project: Project | null;
   onClose: () => void;
@@ -28,6 +42,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(true);
+  const [isHeroVideoEnlarged, setIsHeroVideoEnlarged] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const isIkea = project?.id === 'ikea-motion-showcase' || project?.slug === 'ikea-motion-showcase' || (project?.title ? project.title.toLowerCase().includes('ikea') : false);
@@ -49,10 +64,28 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     setIsMuted(videoRef.current.muted);
   };
 
-  const handleFullscreenVideo = () => {
-    if (!videoRef.current) return;
-    if (videoRef.current.requestFullscreen) {
-      videoRef.current.requestFullscreen();
+  const handleFullscreenVideo = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    try {
+      audio.playMechanicalClick();
+    } catch {}
+    setIsHeroVideoEnlarged(true);
+
+    try {
+      const v = videoRef.current as any;
+      if (v) {
+        if (typeof v.webkitEnterFullscreen === 'function') {
+          v.webkitEnterFullscreen();
+        } else if (typeof v.requestFullscreen === 'function') {
+          v.requestFullscreen().catch(() => {});
+        } else if (typeof v.webkitRequestFullscreen === 'function') {
+          v.webkitRequestFullscreen();
+        }
+      }
+    } catch {
+      // In-app portal provides guaranteed lightbox
     }
   };
 
@@ -68,6 +101,12 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!project) return;
+      if (isHeroVideoEnlarged) {
+        if (e.key === 'Escape') {
+          setIsHeroVideoEnlarged(false);
+        }
+        return;
+      }
       if (activeImageIndex !== null) {
         if (e.key === 'Escape') {
           setActiveImageIndex(null);
@@ -89,7 +128,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [project, activeImageIndex]);
+  }, [project, activeImageIndex, isHeroVideoEnlarged]);
 
   if (!project) return null;
 
@@ -107,20 +146,20 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     onSelectProject(prevProject);
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-xl overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-0 sm:p-4 md:p-6 bg-black overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-5xl my-8 bg-[#111113] border border-white/15 rounded-2xl shadow-2xl overflow-hidden text-white"
+        className="relative w-full max-w-5xl my-0 sm:my-8 bg-[#111113] border-0 sm:border border-white/15 rounded-none sm:rounded-2xl shadow-2xl overflow-hidden text-white flex flex-col min-h-screen sm:min-h-0"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Hardware Navigation Bar */}
-        <div className="flex items-center justify-between px-6 py-4 bg-[#161619] border-b border-white/10 sticky top-0 z-20">
-          <div className="flex items-center gap-3">
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: project.accentColor }} />
-            <span className="font-mono text-xs font-bold text-white/80 uppercase tracking-widest">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-[#161619] border-b border-white/10 sticky top-0 z-20">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: project.accentColor }} />
+            <span className="font-mono text-[11px] sm:text-xs font-bold text-white/80 uppercase tracking-wider sm:tracking-widest truncate">
               {t('modal.projectFile')} // #{String(currentIndex + 1).padStart(2, '0')}
             </span>
             <span className="hidden sm:inline-block px-2.5 py-0.5 rounded bg-black/60 font-mono text-[10px] text-[#39FF14] border border-white/10">
@@ -128,11 +167,11 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Prev Project */}
             <button
               onClick={handlePrev}
-              className="p-2 rounded bg-black/50 border border-white/10 hover:border-white/30 text-white/70 hover:text-white transition-colors cursor-pointer"
+              className="p-2 rounded bg-black/50 border border-white/10 hover:border-white/30 text-white/70 hover:text-white transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
               title={t('modal.prev')}
             >
               <ArrowLeft className="h-4 w-4" />
@@ -140,7 +179,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             {/* Next Project */}
             <button
               onClick={handleNext}
-              className="p-2 rounded bg-black/50 border border-white/10 hover:border-white/30 text-white/70 hover:text-white transition-colors cursor-pointer"
+              className="p-2 rounded bg-black/50 border border-white/10 hover:border-white/30 text-white/70 hover:text-white transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
               title={t('modal.next')}
             >
               <ArrowRight className="h-4 w-4" />
@@ -151,7 +190,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 audio.playKeyHover();
                 onClose();
               }}
-              className="p-2 rounded bg-[#39FF14] text-black font-bold hover:shadow-[0_0_15px_#39FF14] transition-all ml-2 cursor-pointer"
+              className="p-2 rounded bg-[#39FF14] text-black font-bold hover:shadow-[0_0_15px_#39FF14] transition-all ml-1 sm:ml-2 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
               title={t('modal.close')}
             >
               <X className="h-4 w-4" />
@@ -160,7 +199,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         </div>
 
         {/* Modal Body Content */}
-        <div className="p-6 sm:p-8 lg:p-10 space-y-12 max-h-[80vh] overflow-y-auto">
+        <div className="p-4 sm:p-8 lg:p-10 space-y-10 sm:space-y-12 sm:max-h-[82vh] overflow-y-auto flex-1">
           {/* Hero Header Section */}
           <div>
             <div className="flex flex-wrap gap-2 mb-3">
@@ -194,28 +233,41 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     className="w-full h-full object-cover"
                   />
 
+                  {/* Top-left direct maximize badge */}
+                  <button
+                    onClick={handleFullscreenVideo}
+                    className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black border border-white/20 hover:border-[#39FF14] text-white/90 hover:text-white font-mono text-[11px] tracking-wider transition-all cursor-pointer opacity-90 hover:opacity-100 z-10 shadow-lg active:scale-95"
+                    title={lang === 'fr' ? 'Agrandir la vidéo' : 'Enlarge video'}
+                  >
+                    <Maximize2 className="h-3.5 w-3.5 text-[#39FF14]" />
+                    <span>{lang === 'fr' ? 'AGRANDIR' : 'EXPAND'}</span>
+                  </button>
+
                   {/* Player Quick Controls */}
-                  <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-black/80 backdrop-blur-md p-1.5 rounded-xl border border-white/15 opacity-90 group-hover:opacity-100 transition-opacity z-10">
+                  <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex items-center gap-1.5 sm:gap-2 bg-black/85 backdrop-blur-md p-1 sm:p-1.5 rounded-xl border border-white/15 opacity-90 group-hover:opacity-100 transition-opacity z-10">
                     <button
                       onClick={toggleVideoPlay}
-                      className="p-2 rounded-lg bg-white/10 hover:bg-white/25 text-white transition-colors cursor-pointer"
+                      className="min-h-[40px] min-w-[40px] sm:min-h-[36px] sm:min-w-[36px] p-2 rounded-lg bg-white/10 hover:bg-white/25 active:bg-white/30 text-white transition-colors cursor-pointer flex items-center justify-center"
                       title={isPlaying ? "Pause" : "Lecture"}
+                      aria-label={isPlaying ? "Mettre en pause" : "Lire la vidéo"}
                     >
                       {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                     </button>
                     {!isIkea && (
                       <button
                         onClick={toggleVideoMute}
-                        className="p-2 rounded-lg bg-white/10 hover:bg-white/25 text-white transition-colors cursor-pointer"
+                        className="min-h-[40px] min-w-[40px] sm:min-h-[36px] sm:min-w-[36px] p-2 rounded-lg bg-white/10 hover:bg-white/25 active:bg-white/30 text-white transition-colors cursor-pointer flex items-center justify-center"
                         title={isMuted ? "Activer le son" : "Couper le son"}
+                        aria-label={isMuted ? "Activer le son" : "Couper le son"}
                       >
                         {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                       </button>
                     )}
                     <button
                       onClick={handleFullscreenVideo}
-                      className="p-2 rounded-lg bg-white/10 hover:bg-white/25 text-white transition-colors cursor-pointer"
-                      title="Plein écran"
+                      className="min-h-[40px] min-w-[40px] sm:min-h-[36px] sm:min-w-[36px] p-2 rounded-lg bg-white/10 hover:bg-white/25 active:bg-white/30 text-white hover:text-[#39FF14] transition-colors cursor-pointer flex items-center justify-center"
+                      title={lang === 'fr' ? 'Agrandir la vidéo en plein écran' : 'Fullscreen video'}
+                      aria-label="Agrandir la vidéo"
                     >
                       <Maximize2 className="h-4 w-4" />
                     </button>
@@ -223,6 +275,64 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Lightbox for Hero Video Enlargement */}
+            {isHeroVideoEnlarged && project.videoUrl &&
+              createPortal(
+                <div
+                  className="fixed inset-0 z-[99999] w-screen h-screen flex items-center justify-center p-2 sm:p-6 md:p-8 bg-black select-none overflow-hidden"
+                  onClick={() => setIsHeroVideoEnlarged(false)}
+                >
+                  <div
+                    className="relative max-w-6xl w-full max-h-[96vh] flex flex-col items-center justify-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Top Controls Bar */}
+                    <div className="w-full flex items-center justify-between pb-3 font-mono text-xs text-white/80">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <span className="h-2 w-2 rounded-full bg-[#39FF14] shrink-0" />
+                        <span className="uppercase tracking-wider font-semibold truncate text-xs sm:text-sm">
+                          {project.title}
+                        </span>
+                        <span className="hidden sm:inline-block text-[#39FF14] font-mono text-[10px] px-2 py-0.5 rounded bg-white/10 border border-white/10">
+                          {lang === 'fr' ? 'DÉMONSTRATION VIDÉO' : 'VIDEO DEMO'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setIsHeroVideoEnlarged(false)}
+                        className="p-2 sm:px-3 sm:py-2 rounded-lg bg-white/15 hover:bg-white/25 active:bg-white/30 text-white transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 min-h-[44px] min-w-[44px] justify-center"
+                        aria-label="Fermer"
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="font-mono text-xs">{lang === 'fr' ? 'FERMER (ESC)' : 'CLOSE (ESC)'}</span>
+                      </button>
+                    </div>
+
+                    {/* Big Responsive Video Container */}
+                    <div className="relative w-full max-h-[85vh] rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex items-center justify-center bg-black">
+                      <video
+                        ref={(el) => {
+                          if (el && videoRef.current) {
+                            try {
+                              if (Math.abs(el.currentTime - videoRef.current.currentTime) > 0.5) {
+                                el.currentTime = videoRef.current.currentTime;
+                              }
+                            } catch {}
+                          }
+                        }}
+                        src={project.videoUrl}
+                        controls
+                        autoPlay
+                        playsInline
+                        loop
+                        muted={isIkea ? true : false}
+                        className="max-w-full max-h-[82vh] w-auto h-auto rounded-2xl object-contain block bg-black shadow-2xl"
+                      />
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )}
 
             {/* Fallback Hero Image if no video is present */}
             {!project.videoUrl && project.heroImage && (
@@ -246,14 +356,20 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               <h3 className="font-mono text-xs font-bold text-white/50 uppercase tracking-[0.2em] mb-3">
                 {t('modal.metricsTitle')}
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 {project.metrics.map((m, idx) => (
                   <div
                     key={idx}
-                    className="p-4 rounded-xl bg-[#161619] border border-white/10 flex flex-col justify-between"
+                    className="p-3.5 sm:p-4 rounded-xl bg-[#161619] border border-white/10 flex flex-col justify-between min-w-0 overflow-hidden shadow-inner"
                   >
-                    <span className="font-mono text-xs text-white/50">{m.label}</span>
-                    <span className="font-display text-2xl sm:text-3xl font-black text-[#39FF14] mt-2 italic tracking-tight">
+                    <span className="font-mono text-[11px] sm:text-xs text-white/50 truncate block mb-1.5">
+                      {m.label}
+                    </span>
+                    <span
+                      className={`font-display font-black text-[#39FF14] italic tracking-tight break-words [overflow-wrap:anywhere] hyphens-auto mt-auto ${getMetricFontSize(
+                        m.value
+                      )}`}
+                    >
                       {m.value}
                     </span>
                   </div>
@@ -491,6 +607,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

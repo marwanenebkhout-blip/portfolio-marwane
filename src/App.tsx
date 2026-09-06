@@ -49,35 +49,31 @@ export default function App() {
     }
   };
 
-  // Section observer for active nav indicator with requestAnimationFrame throttle to prevent layout thrashing
+  // Section observer for active nav indicator using native IntersectionObserver (no layout thrashing / zero CPU overhead)
   useEffect(() => {
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const sections = ['hero', 'portfolio-reel', 'work', 'about', 'contact', 'console-keyboard'];
-          const scrollPosition = window.scrollY + 200;
+    const sectionIds = ['hero', 'portfolio-reel', 'work', 'about', 'contact', 'console-keyboard'];
+    const elements = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
 
-          for (const section of sections) {
-            const el = document.getElementById(section);
-            if (el) {
-              const top = el.offsetTop;
-              const height = el.offsetHeight;
-              if (scrollPosition >= top && scrollPosition < top + height) {
-                setActiveSection(section);
-                break;
-              }
-            }
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
+    if (elements.length === 0) return;
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length > 0) {
+          visible.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+          setActiveSection(visible[0].target.id);
+        }
+      },
+      { threshold: [0.1, 0.4] }
+    );
+
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
   }, []);
+
+  const isModalOpen = isCVModalOpen || !!selectedProject;
 
   return (
     <div className="min-h-screen bg-black text-[#e2e8f0] relative selection:bg-[#00ff66] selection:text-black overflow-x-hidden w-full max-w-full">
@@ -178,13 +174,14 @@ export default function App() {
               <HeroCore3D
                 onSelectSection={scrollToSection}
                 setCursorMode={setCursorMode}
+                isPaused={isModalOpen}
               />
             </div>
           </div>
         </section>
 
         {/* RETRO CRT SHOWCASE VIDEO // SCROLL-TRIGGERED REEL */}
-        <PortfolioVideoSection setCursorMode={setCursorMode} />
+        <PortfolioVideoSection setCursorMode={setCursorMode} isPaused={isModalOpen} />
 
         {/* PROJECTS / WORK SECTION */}
         <ProjectsSection
@@ -193,7 +190,7 @@ export default function App() {
         />
 
         {/* 3D FLOATING ICONS CLUSTER // SPATIAL LEVITATION & SPRING REPULSION */}
-        <FloatingIconsField setCursorMode={setCursorMode} />
+        <FloatingIconsField setCursorMode={setCursorMode} isPaused={isModalOpen} />
 
         {/* ABOUT & DOSSIER SECTION */}
         <AboutSection onOpenCVModal={() => setIsCVModalOpen(true)} />
@@ -215,6 +212,7 @@ export default function App() {
             onOpenCV={() => setIsCVModalOpen(true)}
             onOpenContact={() => scrollToSection('contact')}
             setCursorMode={setCursorMode}
+            isPaused={isModalOpen}
           />
 
           {/* Bottom Metas & Copyright Bar */}

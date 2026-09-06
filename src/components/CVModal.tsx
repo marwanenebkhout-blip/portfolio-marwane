@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { getPersonalInfo, getExperiences, getEducation, getSoftwareStack } from '../data/config';
 import { useLanguage } from '../context/LanguageContext';
 import { audio } from '../utils/audio';
@@ -104,40 +105,42 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
     window.print();
   };
 
-  return (
+  return createPortal(
     <div
       ref={scrollContainerRef}
-      className={`fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6 bg-black/90 backdrop-blur-xl transition-all duration-200 ${
+      className={`fixed inset-0 z-[100] overflow-y-auto p-0 sm:p-6 bg-black transition-all duration-200 ${
         isOpen ? 'opacity-100 pointer-events-auto visible' : 'opacity-0 pointer-events-none invisible'
       }`}
       onClick={handleClose}
       aria-hidden={!isOpen}
     >
-      <div className="min-h-full flex items-start sm:items-center justify-center py-4 sm:py-8">
+      <div className="min-h-full flex items-start sm:items-center justify-center py-0 sm:py-8">
         <div
-          className={`relative w-full max-w-4xl bg-[#111113] border border-white/15 rounded-2xl shadow-2xl overflow-hidden text-white transition-all duration-200 ${
+          className={`relative w-full max-w-4xl bg-[#111113] border-0 sm:border border-white/15 rounded-none sm:rounded-2xl shadow-2xl overflow-hidden text-white flex flex-col min-h-screen sm:min-h-0 transition-all duration-200 ${
             isOpen ? 'scale-100 opacity-100' : 'scale-98 opacity-0'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
         {/* Top Control Bar */}
-        <div className="flex items-center justify-between px-6 py-4 bg-[#161619] border-b border-white/10 sticky top-0 z-10">
-          <div className="flex items-center gap-2 font-mono text-xs text-white/80">
-            <span className="h-2 w-2 rounded-full bg-[#39FF14]" />
-            <span className="font-bold tracking-wider uppercase">CURRICULUM VITAE // {personalInfo.name}</span>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-[#161619] border-b border-white/10 sticky top-0 z-20">
+          <div className="flex items-center gap-2 font-mono text-xs text-white/80 min-w-0">
+            <span className="h-2 w-2 rounded-full bg-[#39FF14] shrink-0" />
+            <span className="font-bold tracking-wider uppercase truncate text-[11px] sm:text-xs">
+              CURRICULUM VITAE // {personalInfo.name}
+            </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs font-mono text-white transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs font-mono text-white transition-colors cursor-pointer min-h-[36px]"
             >
               <Printer className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{lang === 'fr' ? 'IMPRIMER / PDF' : 'PRINT / PDF'}</span>
             </button>
             <button
               onClick={handleClose}
-              className="p-1.5 rounded bg-[#39FF14] text-black hover:shadow-[0_0_12px_#39FF14] transition-all cursor-pointer"
+              className="p-1.5 sm:p-2 rounded bg-[#39FF14] text-black hover:shadow-[0_0_12px_#39FF14] transition-all cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
               title={t('modal.close')}
             >
               <X className="h-4 w-4" />
@@ -148,7 +151,7 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
         {/* Printable CV Container */}
         <div
           ref={cvContentRef}
-          className="p-8 sm:p-12 space-y-10 max-h-[80vh] overflow-y-auto font-sans bg-black"
+          className="p-4 sm:p-8 md:p-12 space-y-8 sm:space-y-10 sm:max-h-[80vh] overflow-y-auto font-sans bg-black flex-1"
         >
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-8 border-b border-white/15">
@@ -301,9 +304,10 @@ export const CVModal: React.FC<CVModalProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
           </div>
+          </div>
         </div>
       </div>
-    </div>
-    </div>
+    </div>,
+    document.body
   );
 };

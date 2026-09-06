@@ -12,6 +12,7 @@ interface MechanicalFooterKeyboardProps {
   onOpenCV: () => void;
   onOpenContact: () => void;
   setCursorMode: (mode: CursorMode, text?: string) => void;
+  isPaused?: boolean;
 }
 
 // Generate Instagram sunset gradient texture on canvas
@@ -644,9 +645,19 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
   onOpenCV,
   onOpenContact,
   setCursorMode,
+  isPaused = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInView, setIsInView] = useState(false);
+  const [isTabVisible, setIsTabVisible] = useState(!document.hidden);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabVisible(!document.hidden);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -654,7 +665,7 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
 
     // Check if already in or near view on initial load
     const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight + 800 && rect.bottom > -800) {
+    if (rect.top < window.innerHeight + 120 && rect.bottom > -120) {
       setIsInView(true);
     }
 
@@ -662,11 +673,13 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
       ([entry]) => {
         setIsInView(entry.isIntersecting);
       },
-      { rootMargin: '800px' }
+      { rootMargin: '120px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  const shouldRender = isInView && isTabVisible && !isPaused;
 
   return (
     <div 
@@ -681,13 +694,13 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[450px] sm:max-w-[750px] lg:max-w-[900px] h-[150px] sm:h-[280px] bg-[#39FF14]/12 blur-[60px] sm:blur-[90px] rounded-full pointer-events-none" />
 
         <Canvas
-          frameloop={isInView ? 'always' : 'demand'}
+          frameloop={shouldRender ? 'always' : 'demand'}
           camera={{ position: [0, 8.5, 6.2], fov: 42 }}
           dpr={[1, 1.25]}
           gl={{
             antialias: true,
             alpha: true,
-            powerPreference: 'default',
+            powerPreference: 'low-power',
           }}
         >
           {/* Studio Lighting Rig */}

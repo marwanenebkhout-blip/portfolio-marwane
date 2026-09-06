@@ -711,7 +711,7 @@ export const projects: Project[] = [
     description: "Neben réinvente le vestiaire streetwear à travers une identité typographique audacieuse et intemporelle. Au croisement de l'héritage calligraphique arabe et de la culture streetwear contemporaine, la marque propose des pièces structurées aux finitions d'exception : broderies chenille en relief, sérigraphies haute densité, coupes oversize en molleton lourd (100% coton peigné) et vestes en cuir de prestige. Conception intégrale de la marque, du logotype « نيبين » et de son monogramme « ١٩٩٩ » jusqu'au stylisme des collections, packaging d'expédition rigide, direction photo et boutique e-commerce neben.fr.",
     heroImage: neben01Concept,
     secondaryImage: neben02LeatherJacket,
-    secondaryBottomImage: neben03Lineup,
+    secondaryBottomImage: neben05ChenillePatch,
     accentColor: '#e11d48',
     gradient: 'from-neutral-900/50 via-rose-500/10 to-transparent',
     role: [
@@ -748,8 +748,8 @@ export const projects: Project[] = [
       },
       {
         type: 'image',
-        url: neben03Lineup,
-        caption: "Slide 03 // CAPSULE LINEUP : Collection Streetwear « EST. 1999 » — Déclinaison complète en t-shirts, sweatshirts col rond et hoodies (noir & blanc) avec médaillons superposés 3D et calligraphie arabe."
+        url: neben05ChenillePatch,
+        caption: "Slide 03 // SAVOIR-FAIRE TEXTILE : Sweatshirt écru — Écusson ovale brodé en point de chaînette / chenille bouclette rétro jaune moutarde, lettrage arabe magenta et accents turquoise."
       },
       {
         type: 'image',
@@ -758,8 +758,8 @@ export const projects: Project[] = [
       },
       {
         type: 'image',
-        url: neben05ChenillePatch,
-        caption: "Slide 05 // SAVOIR-FAIRE TEXTILE : Sweatshirt écru — Écusson ovale brodé en point de chaînette / chenille bouclette rétro jaune moutarde, lettrage arabe magenta et accents turquoise."
+        url: neben03Lineup,
+        caption: "Slide 05 // CAPSULE LINEUP : Collection Streetwear « EST. 1999 » — Déclinaison complète en t-shirts, sweatshirts col rond et hoodies (noir & blanc) avec médaillons superposés 3D et calligraphie arabe."
       },
       {
         type: 'image',

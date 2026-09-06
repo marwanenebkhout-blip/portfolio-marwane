@@ -6,9 +6,10 @@ import ordiPoster from '../assets/images/ordi_code_poster.webp';
 
 interface PortfolioVideoSectionProps {
   setCursorMode?: (mode: any, text?: string) => void;
+  isPaused?: boolean;
 }
 
-export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ setCursorMode }) => {
+export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ setCursorMode, isPaused = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   
@@ -22,28 +23,45 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
   const [hasStarted, setHasStarted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Play video automatically when scrolled into view and pause when scrolled away to save GPU/battery
+  // Play video automatically when scrolled into view and pause when scrolled away or paused to save GPU/battery
   useEffect(() => {
-    if (isInView) {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleVisibility = () => {
+      if (!videoRef.current) return;
+      if (document.hidden || isPaused) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      } else if (isInView) {
+        videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    if (isInView && !isPaused && !document.hidden) {
       setHasBeenInView(true);
       setHasStarted(true);
-      if (videoRef.current) {
-        const playPromise = videoRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              setIsPlaying(true);
-            })
-            .catch((err) => {
-              console.log('Video autoplay prevented on scroll:', err);
-            });
-        }
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((err) => {
+            console.log('Video autoplay prevented on scroll:', err);
+          });
       }
-    } else if (!isInView && videoRef.current && hasStarted) {
-      videoRef.current.pause();
+    } else if ((!isInView || isPaused) && hasStarted) {
+      video.pause();
       setIsPlaying(false);
     }
-  }, [isInView, hasStarted]);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [isInView, hasStarted, isPaused]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;

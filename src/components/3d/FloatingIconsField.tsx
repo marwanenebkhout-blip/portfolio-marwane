@@ -23,6 +23,7 @@ class SceneErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
 
 interface FloatingIconsFieldProps {
   setCursorMode?: (mode: CursorMode, text?: string) => void;
+  isPaused?: boolean;
 }
 
 interface SingleIconProps {
@@ -289,9 +290,18 @@ const SoftBackdropGlow: React.FC = () => {
   );
 };
 
-export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }) => {
+export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCursorMode, isPaused = false }) => {
   const sectionRef = useRef<HTMLElement>(null);
   const [isInView, setIsInView] = useState(false);
+  const [isTabVisible, setIsTabVisible] = useState(!document.hidden);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabVisible(!document.hidden);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -299,7 +309,7 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
 
     // Check if already in or near view on initial load
     const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight + 800 && rect.bottom > -800) {
+    if (rect.top < window.innerHeight + 120 && rect.bottom > -120) {
       setIsInView(true);
     }
 
@@ -307,11 +317,13 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
       ([entry]) => {
         setIsInView(entry.isIntersecting);
       },
-      { rootMargin: '800px' }
+      { rootMargin: '120px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  const shouldRender = isInView && isTabVisible && !isPaused;
 
   return (
     <section 
@@ -330,11 +342,11 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
       <div className="relative w-full h-[360px] sm:h-[480px] lg:h-[650px] overflow-hidden z-0">
         {/* R3F Canvas - idle 'demand' mode when far offscreen, active 'always' when near/in view */}
         <Canvas
-          frameloop={isInView ? 'always' : 'demand'}
+          frameloop={shouldRender ? 'always' : 'demand'}
           camera={{ position: [0, 0, 5.4], fov: 45 }}
           className="w-full h-full"
           dpr={[1, 1.25]}
-          gl={{ antialias: true, alpha: true, powerPreference: 'default' }}
+          gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}
         >
           {/* Clean Neutral Studio Lighting on Front of Icons */}
           <ambientLight intensity={0.9} />

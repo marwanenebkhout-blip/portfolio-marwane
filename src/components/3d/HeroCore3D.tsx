@@ -6,38 +6,55 @@ import avatarPoster from '../../assets/avatar_character_poster.webp';
 interface HeroCore3DProps {
   onSelectSection?: (sectionId: string) => void;
   setCursorMode?: (mode: CursorMode, text?: string) => void;
+  isPaused?: boolean;
 }
 
-export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode }) => {
+export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode, isPaused = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const isIntersectingRef = useRef(false);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.defaultMuted = true;
-      videoRef.current.muted = true;
-      videoRef.current.play().catch(() => {
-        // Autoplay fallback
-      });
-    }
+    const video = videoRef.current;
+    if (!video) return;
 
-    // Pause playback when hero is scrolled out of view to save GPU/CPU cycles
+    video.defaultMuted = true;
+    video.muted = true;
+
+    const updatePlayback = () => {
+      if (!video) return;
+      if (document.hidden || isPaused || !isIntersectingRef.current) {
+        video.pause();
+      } else {
+        video.play().catch(() => {});
+      }
+    };
+
     const el = containerRef.current;
     if (!el) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!videoRef.current) return;
-        if (entry.isIntersecting) {
-          videoRef.current.play().catch(() => {});
-        } else {
-          videoRef.current.pause();
-        }
+        isIntersectingRef.current = entry.isIntersecting;
+        updatePlayback();
       },
       { threshold: 0.05 }
     );
     observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+
+    const handleVisibilityChange = () => {
+      updatePlayback();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Initial check
+    updatePlayback();
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isPaused]);
 
   return (
     <div 
