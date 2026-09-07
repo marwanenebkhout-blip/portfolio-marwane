@@ -107,6 +107,7 @@
   opacity: 0.035;
   pointer-events: none;
   transform: translateZ(0);
+  contain: strict;
 }
 
 /* Scanline / CRT overlay */
@@ -123,6 +124,7 @@
   background-size: 100% 3px, 6px 100%;
   pointer-events: none;
   transform: translateZ(0);
+  contain: strict;
 }
 
 /* Subtle digital grid */

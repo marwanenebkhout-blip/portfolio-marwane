@@ -12,6 +12,7 @@ interface ControlledVideoProps {
   isSectionInView: boolean;
   className?: string;
   isIkea?: boolean;
+  isPaused?: boolean;
 }
 
 const ControlledVideo: React.FC<ControlledVideoProps> = ({
@@ -20,6 +21,7 @@ const ControlledVideo: React.FC<ControlledVideoProps> = ({
   isSectionInView,
   className,
   isIkea,
+  isPaused = false,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -32,15 +34,25 @@ const ControlledVideo: React.FC<ControlledVideoProps> = ({
       v.volume = 0;
     }
 
-    if (isActive && isSectionInView) {
-      const playPromise = v.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {});
+    const updatePlayback = () => {
+      if (!videoRef.current) return;
+      if (!isActive || !isSectionInView || isPaused || document.hidden) {
+        videoRef.current.pause();
+      } else {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {});
+        }
       }
-    } else {
-      v.pause();
-    }
-  }, [isActive, isSectionInView, isIkea]);
+    };
+
+    document.addEventListener('visibilitychange', updatePlayback);
+    updatePlayback();
+
+    return () => {
+      document.removeEventListener('visibilitychange', updatePlayback);
+    };
+  }, [isActive, isSectionInView, isIkea, isPaused]);
 
   return (
     <video
@@ -49,7 +61,7 @@ const ControlledVideo: React.FC<ControlledVideoProps> = ({
       loop
       muted
       playsInline
-      preload="metadata"
+      preload={isActive ? 'auto' : 'none'}
       className={className}
     />
   );
@@ -58,25 +70,34 @@ const ControlledVideo: React.FC<ControlledVideoProps> = ({
 interface ProjectsSectionProps {
   onSelectProject: (project: Project) => void;
   setCursorMode: (mode: CursorMode, text?: string) => void;
+  isPaused?: boolean;
 }
 
 export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
   onSelectProject,
   setCursorMode,
+  isPaused = false,
 }) => {
   const { lang, t } = useLanguage();
   const [activeIdx, setActiveIdx] = useState<number>(0);
   const sectionRef = useRef<HTMLElement>(null);
-  const [isSectionInView, setIsSectionInView] = useState(true);
+  const [isSectionInView, setIsSectionInView] = useState(false);
 
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
+
+    // Check if already in view on mount
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 80 && rect.bottom > -80) {
+      setIsSectionInView(true);
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsSectionInView(entry.isIntersecting);
       },
-      { rootMargin: '350px' }
+      { rootMargin: '80px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -189,8 +210,8 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
               ? 30
               : 40 + idx;
 
-            // Mount all card media so images and visuals render instantaneously without any delay
-            const shouldMountMedia = true;
+            // Mount active card and immediate neighbors for instantaneous zero-latency switching without overloading GPU memory
+            const shouldMountMedia = isActive || Math.abs(idx - activeIdx) <= 1;
 
             return (
               <div
@@ -271,6 +292,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                       <div className="px-3 sm:px-5 md:px-6 pb-3 sm:pb-5 md:pb-6 pt-1">
                         {(() => {
                           const isIkea = project.id === 'ikea-motion-showcase' || project.slug === 'ikea-motion-showcase' || project.title.toLowerCase().includes('ikea');
+                          const isLina = project.id === 'lina-18th-invitation' || project.slug === 'lina-18th-invitation';
                           return (
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3.5 items-stretch h-auto md:h-[320px] lg:h-[370px] xl:h-[400px]">
                               
@@ -290,7 +312,12 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                     isActive={isActive}
                                     isSectionInView={isSectionInView}
                                     isIkea={isIkea}
-                                    className="w-full h-full object-cover block select-none group-hover/media:scale-[1.02] transition-transform duration-300"
+                                    isPaused={isPaused}
+                                    className={`w-full h-full object-cover block select-none transition-transform duration-300 origin-center ${
+                                      isLina
+                                        ? 'scale-[1.45] group-hover/media:scale-[1.48]'
+                                        : 'group-hover/media:scale-[1.02]'
+                                    }`}
                                   />
                                 ) : (
                                   <img
@@ -323,6 +350,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                       isActive={isActive}
                                       isSectionInView={isSectionInView}
                                       isIkea={isIkea}
+                                      isPaused={isPaused}
                                       className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                     />
                                   ) : (
@@ -354,6 +382,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                       isActive={isActive}
                                       isSectionInView={isSectionInView}
                                       isIkea={isIkea}
+                                      isPaused={isPaused}
                                       className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                     />
                                   ) : (

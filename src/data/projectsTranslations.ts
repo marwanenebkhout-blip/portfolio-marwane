@@ -128,6 +128,26 @@ export const projectsTranslationsEn: Record<string, NonNullable<Project['en']>> 
       'Packaging, woven labels, and custom hangtags',
       'E-commerce launch visuals and social campaign assets'
     ]
+  },
+  'lina-18th-invitation': {
+    subtitle: "3D Animation, VFX & Retro-Futuristic Birthday Invitation",
+    summary: "Cinematic invitation short film for Lina's 18th birthday: a creative homage to 'Back to the Future' featuring Blender 3D DeLorean animation, holographic watch VFX, and 80s chrome aesthetics.",
+    description: "A fantasy passion project fusing retro-futuristic cinema, advanced 3D vehicle animation, and multi-layer VFX compositing. Celebrating the cult classic 'Back to the Future', this film showcases the spatio-temporal arrival of the DeLorean in hover mode, volumetric smoke touchdown, a futuristic smartwatch holographic countdown, and the final reveal with a bespoke 80s chrome and neon lightning logo.",
+    tags: ['3D Animation', 'VFX', 'Blender', 'After Effects', 'Motion Design', 'Art Direction'],
+    role: ['Art Director', '3D Generalist (Blender)', 'VFX Supervisor (After Effects)', 'Motion Designer', 'Video Editor'],
+    metrics: [
+      { label: '3D Pipeline', value: 'Blender & Cycles' },
+      { label: 'VFX Compositing', value: 'After Effects' },
+      { label: 'Visual Universe', value: 'Sci-Fi / Retro-Futuristic' }
+    ],
+    deliverables: [
+      'Full 3D & live-action cinematic invitation short film (16:9 widescreen)',
+      '3D modeling, rigging, and aerial flight kinematics of the DeLorean in Blender',
+      'Motion tracking, volumetric particles, and smartwatch holographic UI in After Effects',
+      'Custom 3D 80s chrome & neon typography logo « LINA FÊTE SES 18 ANS »',
+      'Promotional synthwave poster & social key visual'
+    ],
+    videoCaption: "Cinematic invitation film — 3D DeLorean animation in Blender & After Effects VFX compositing"
   }
 };
 

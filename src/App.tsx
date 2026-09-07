@@ -77,9 +77,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-[#e2e8f0] relative selection:bg-[#00ff66] selection:text-black overflow-x-hidden w-full max-w-full">
-      {/* Cybernetic Scanlines and Noise FX */}
+      {/* Cybernetic Scanlines FX */}
       <div className="fixed inset-0 scanlines opacity-40 pointer-events-none z-30 overflow-hidden" />
-      <div className="fixed inset-0 bg-noise opacity-15 pointer-events-none z-10 overflow-hidden" />
 
       {/* Top Header Navigation */}
       <HeaderNav
@@ -187,6 +186,7 @@ export default function App() {
         <ProjectsSection
           onSelectProject={(project) => setSelectedProject(project)}
           setCursorMode={setCursorMode}
+          isPaused={isModalOpen}
         />
 
         {/* 3D FLOATING ICONS CLUSTER // SPATIAL LEVITATION & SPRING REPULSION */}

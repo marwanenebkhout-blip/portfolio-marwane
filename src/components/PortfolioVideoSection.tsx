@@ -30,7 +30,7 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
 
     const handleVisibility = () => {
       if (!videoRef.current) return;
-      if (document.hidden || isPaused) {
+      if (document.hidden || isPaused || !isInView) {
         videoRef.current.pause();
         setIsPlaying(false);
       } else if (isInView) {
@@ -49,11 +49,9 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
           .then(() => {
             setIsPlaying(true);
           })
-          .catch((err) => {
-            console.log('Video autoplay prevented on scroll:', err);
-          });
+          .catch(() => {});
       }
-    } else if ((!isInView || isPaused) && hasStarted) {
+    } else {
       video.pause();
       setIsPlaying(false);
     }
@@ -61,7 +59,7 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [isInView, hasStarted, isPaused]);
+  }, [isInView, isPaused]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -98,7 +96,6 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ se
             ref={videoRef}
             src={ordiCodeVideo}
             poster={ordiPoster}
-            autoPlay
             muted
             playsInline
             preload="none"

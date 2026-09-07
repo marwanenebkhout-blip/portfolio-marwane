@@ -168,9 +168,7 @@ const Key3D = ({
         <RoundedBox
           args={[width, height, depth]}
           radius={0.16}
-          smoothness={8}
-          castShadow
-          receiveShadow
+          smoothness={4}
         >
           {config.textureType === 'ig' ? (
             <meshStandardMaterial
@@ -640,6 +638,43 @@ const KeyboardScene = ({
   );
 };
 
+// Adaptive Render Controller: throttles R3F rendering to 45 FPS during interaction and 30 FPS when idle,
+// avoiding GPU overheating and fan noise on 120Hz/144Hz monitors.
+const AdaptiveKeyboardRenderController: React.FC = () => {
+  const lastRenderTime = useRef(0);
+  const isInteracting = useRef(false);
+  const interactionTimer = useRef<any>(null);
+
+  useEffect(() => {
+    const handleMove = () => {
+      isInteracting.current = true;
+      if (interactionTimer.current) clearTimeout(interactionTimer.current);
+      interactionTimer.current = setTimeout(() => {
+        isInteracting.current = false;
+      }, 1200);
+    };
+
+    window.addEventListener('pointermove', handleMove, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      if (interactionTimer.current) clearTimeout(interactionTimer.current);
+    };
+  }, []);
+
+  useFrame((state) => {
+    const targetFps = isInteracting.current ? 45 : 30;
+    const interval = 1000 / targetFps;
+    const now = performance.now();
+
+    if (now - lastRenderTime.current >= interval) {
+      lastRenderTime.current = now - ((now - lastRenderTime.current) % interval);
+      state.gl.render(state.scene, state.camera);
+    }
+  }, 1);
+
+  return null;
+};
+
 export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> = ({
   onNavigateHome,
   onOpenCV,
@@ -665,7 +700,7 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
 
     // Check if already in or near view on initial load
     const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight + 120 && rect.bottom > -120) {
+    if (rect.top < window.innerHeight + 50 && rect.bottom > -50) {
       setIsInView(true);
     }
 
@@ -673,7 +708,7 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
       ([entry]) => {
         setIsInView(entry.isIntersecting);
       },
-      { rootMargin: '120px' }
+      { rootMargin: '50px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -694,17 +729,23 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[450px] sm:max-w-[750px] lg:max-w-[900px] h-[150px] sm:h-[280px] bg-[#39FF14]/12 blur-[60px] sm:blur-[90px] rounded-full pointer-events-none" />
 
         <Canvas
-          frameloop={shouldRender ? 'always' : 'demand'}
+          frameloop={shouldRender ? 'always' : 'never'}
           camera={{ position: [0, 8.5, 6.2], fov: 42 }}
-          dpr={[1, 1.25]}
+          dpr={1}
           gl={{
             antialias: true,
             alpha: true,
             powerPreference: 'low-power',
+            precision: 'mediump',
+            stencil: false,
+            depth: true,
           }}
         >
+          {/* Adaptive Framerate Limiter to prevent GPU thermal throttling */}
+          <AdaptiveKeyboardRenderController />
+
           {/* Studio Lighting Rig */}
-          <ambientLight intensity={0.8} />
+          <ambientLight intensity={0.9} />
 
           {/* Primary Key Spotlight */}
           <directionalLight
@@ -716,11 +757,10 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
           <directionalLight position={[-8, 6, -4]} intensity={1.2} color="#93c5fd" />
 
           {/* Warm Accent Point Light on the Keyboard Deck */}
-          <pointLight position={[0, 4, 3]} intensity={1.0} color="#ffffff" />
-          <pointLight position={[-4, 2, 1]} intensity={0.8} color="#39FF14" />
-          <pointLight position={[3, 2, 1]} intensity={0.8} color="#3b82f6" />
+          <pointLight position={[0, 4, 3]} intensity={1.1} color="#ffffff" />
+          
           {/* Green Underglow & Rim Backlight */}
-          <pointLight position={[0, -0.5, -1.2]} intensity={2.2} color="#39FF14" distance={12} />
+          <pointLight position={[0, -0.5, -1.2]} intensity={2.4} color="#39FF14" distance={12} />
           <pointLight position={[0, 1.2, -4]} intensity={1.5} color="#39FF14" distance={10} />
 
           {/* 3D Keyboard Scene */}

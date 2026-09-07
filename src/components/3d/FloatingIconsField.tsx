@@ -46,7 +46,6 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
   material,
   basePosition,
   index,
-  name,
   setCursorMode,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -87,31 +86,33 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
 
     // 2. Cursor repulsion physics (calculate cursor position on world plane)
     const { pointer, viewport } = state;
-    const cursorWorldX = pointer.x * (viewport.width / 2);
-    const cursorWorldY = pointer.y * (viewport.height / 2);
+    const cursorWorldX = pointer.x * (viewport.width * 0.5);
+    const cursorWorldY = pointer.y * (viewport.height * 0.5);
 
     const dx = currentPos.current.x - cursorWorldX;
     const dy = currentPos.current.y - cursorWorldY;
-    const dist2D = Math.sqrt(dx * dx + dy * dy);
+    const dist2DSq = dx * dx + dy * dy;
+    const repelRadiusSq = 3.61; // 1.9 * 1.9
 
-    const repelRadius = 1.9; // Distance threshold for magnetic repulsion
     let pushX = 0;
     let pushY = 0;
     let pushZ = 0;
     let targetScale = 1.0;
 
-    // Active cursor repulsion when close
-    if (dist2D < repelRadius) {
-      const force = Math.pow(1 - dist2D / repelRadius, 1.6);
-      const dirX = dx / (dist2D + 0.0001);
-      const dirY = dy / (dist2D + 0.0001);
+    // Active cursor repulsion only when within radius (avoid heavy sqrt/pow when far)
+    if (dist2DSq < repelRadiusSq) {
+      const dist2D = Math.sqrt(dist2DSq);
+      const force = Math.pow(1 - dist2D / 1.9, 1.6);
+      const invDist = 1 / (dist2D + 0.0001);
+      const dirX = dx * invDist;
+      const dirY = dy * invDist;
 
-      // Repel away from cursor on X/Y and project forward in +Z towards user (pop out of screen)
+      // Repel away from cursor on X/Y and project forward in +Z towards user
       pushX = dirX * force * 1.5;
       pushY = dirY * force * 1.5;
-      pushZ = force * 2.2; // Pops out towards camera
+      pushZ = force * 2.2;
 
-      targetScale = 1.0 + force * 0.25; // Scale up as it approaches screen
+      targetScale = 1.0 + force * 0.25;
     }
 
     targetPos.set(levitateX + pushX, levitateY + pushY, levitateZ + pushZ);
@@ -128,17 +129,18 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
     velocity.current.y += (forceVecY - velocity.current.y * damping) * dt;
     velocity.current.z += (forceVecZ - velocity.current.z * damping) * dt;
 
-    currentPos.current.addScaledVector(velocity.current, dt);
+    currentPos.current.x += velocity.current.x * dt;
+    currentPos.current.y += velocity.current.y * dt;
+    currentPos.current.z += velocity.current.z * dt;
 
-    // Apply updated coordinates & transforms
+    // Apply updated coordinates & transforms directly without object allocations
     meshRef.current.position.copy(currentPos.current);
 
-    // Keep icons strictly facing forward (0 rotation)
-    meshRef.current.rotation.set(0, 0, 0);
-
-    const currentScale = meshRef.current.scale.x;
-    const newScale = THREE.MathUtils.damp(currentScale, targetScale, 10, dt);
-    meshRef.current.scale.setScalar(newScale);
+    if (targetScale !== 1.0 || Math.abs(meshRef.current.scale.x - 1.0) > 0.005) {
+      const currentScale = meshRef.current.scale.x;
+      const newScale = THREE.MathUtils.damp(currentScale, targetScale, 10, dt);
+      meshRef.current.scale.setScalar(newScale);
+    }
   });
 
   const handlePointerOver = (e: any) => {
@@ -154,7 +156,6 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
   const handleClick = (e: any) => {
     e.stopPropagation();
     audio.playMechanicalClick();
-    // Add dynamic tactile bounce impulse towards screen
     velocity.current.z += 2.5;
     velocity.current.y += (Math.random() - 0.5) * 1.5;
     velocity.current.x += (Math.random() - 0.5) * 1.5;
@@ -168,11 +169,120 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
       onClick={handleClick}
-      castShadow
-      receiveShadow
     />
   );
 };
+
+// Helper function to split a fused dual-icon mesh (e.g. geometry_0.009 containing both the 'M' logo and circular emblem)
+// into two fully independent, isolated Three.js BufferGeometries
+function splitDualIconMesh(
+  geometry: THREE.BufferGeometry,
+  splitY: number = 0.068
+): {
+  topGeom: THREE.BufferGeometry;
+  bottomGeom: THREE.BufferGeometry;
+  topCenter: THREE.Vector3;
+  bottomCenter: THREE.Vector3;
+} {
+  const posAttr = geometry.attributes.position;
+  const normAttr = geometry.attributes.normal;
+  const uvAttr = geometry.attributes.uv;
+  const indexAttr = geometry.index;
+
+  const topTriangles: [number, number, number][] = [];
+  const bottomTriangles: [number, number, number][] = [];
+
+  const triCount = indexAttr ? indexAttr.count / 3 : posAttr.count / 3;
+
+  for (let t = 0; t < triCount; t++) {
+    const i0 = indexAttr ? indexAttr.getX(t * 3) : t * 3;
+    const i1 = indexAttr ? indexAttr.getX(t * 3 + 1) : t * 3 + 1;
+    const i2 = indexAttr ? indexAttr.getX(t * 3 + 2) : t * 3 + 2;
+
+    const y0 = posAttr.getY(i0);
+    const y1 = posAttr.getY(i1);
+    const y2 = posAttr.getY(i2);
+    const avgY = (y0 + y1 + y2) / 3;
+
+    const x0 = posAttr.getX(i0);
+    const x1 = posAttr.getX(i1);
+    const x2 = posAttr.getX(i2);
+    const avgX = (x0 + x1 + x2) / 3;
+
+    // Distinguish between the bottom circular emblem and the top 'M' icon.
+    // The upper arc of the circular emblem reaches up to y ~ 0.103 at x > 0.079.
+    // Classifying this correctly gives the circular emblem its full round boundary
+    // and completely eliminates the black trait/tail artifact from the bottom-right of the 'M' icon.
+    const isBottomCircle = avgY < splitY || (avgY < 0.103 && avgX > 0.079);
+
+    if (isBottomCircle) {
+      bottomTriangles.push([i0, i1, i2]);
+    } else {
+      topTriangles.push([i0, i1, i2]);
+    }
+  }
+
+  function buildSubGeom(triangles: [number, number, number][]) {
+    const usedVertices = new Map<number, number>();
+    const newIndices: number[] = [];
+
+    for (const tri of triangles) {
+      for (const origV of tri) {
+        let newV = usedVertices.get(origV);
+        if (newV === undefined) {
+          newV = usedVertices.size;
+          usedVertices.set(origV, newV);
+        }
+        newIndices.push(newV);
+      }
+    }
+
+    const count = usedVertices.size;
+    const newPositions = new Float32Array(count * 3);
+    const newNormals = normAttr ? new Float32Array(count * 3) : null;
+    const newUVs = uvAttr ? new Float32Array(count * 2) : null;
+
+    usedVertices.forEach((newV, origV) => {
+      newPositions[newV * 3] = posAttr.getX(origV);
+      newPositions[newV * 3 + 1] = posAttr.getY(origV);
+      newPositions[newV * 3 + 2] = posAttr.getZ(origV);
+
+      if (normAttr && newNormals) {
+        newNormals[newV * 3] = normAttr.getX(origV);
+        newNormals[newV * 3 + 1] = normAttr.getY(origV);
+        newNormals[newV * 3 + 2] = normAttr.getZ(origV);
+      }
+
+      if (uvAttr && newUVs) {
+        newUVs[newV * 2] = uvAttr.getX(origV);
+        newUVs[newV * 2 + 1] = uvAttr.getY(origV);
+      }
+    });
+
+    const newGeom = new THREE.BufferGeometry();
+    newGeom.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
+    if (newNormals) newGeom.setAttribute('normal', new THREE.BufferAttribute(newNormals, 3));
+    if (newUVs) newGeom.setAttribute('uv', new THREE.BufferAttribute(newUVs, 2));
+    newGeom.setIndex(newIndices);
+
+    newGeom.computeBoundingBox();
+    const center = new THREE.Vector3();
+    newGeom.boundingBox?.getCenter(center);
+    newGeom.center(); // Center geometry locally around (0,0,0)
+
+    return { geom: newGeom, center };
+  }
+
+  const top = buildSubGeom(topTriangles);
+  const bottom = buildSubGeom(bottomTriangles);
+
+  return {
+    topGeom: top.geom,
+    bottomGeom: bottom.geom,
+    topCenter: top.center,
+    bottomCenter: bottom.center,
+  };
+}
 
 // Component parsing the GLB file into individual centered meshes
 const FloatingIconsScene: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }) => {
@@ -185,7 +295,7 @@ const FloatingIconsScene: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }
     return Math.min(1.0, Math.max(0.48, (viewport.width * 0.92) / 4.8));
   }, [viewport.width]);
 
-  // Extract and center each mesh individually
+  // Extract and center each mesh individually, sharing the single atlas material to avoid shader re-binding
   const iconMeshes = useMemo(() => {
     const meshes: Array<{
       id: string;
@@ -194,6 +304,20 @@ const FloatingIconsScene: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }
       material: THREE.Material;
       basePosition: THREE.Vector3;
     }> = [];
+
+    // Find the master material from the GLTF scene and tune roughness/metalness once
+    let masterMaterial: THREE.Material | null = null;
+    gltf.scene.traverse((child: any) => {
+      if (!masterMaterial && child.isMesh && child.material) {
+        masterMaterial = child.material;
+        if ((masterMaterial as any).isMeshStandardMaterial) {
+          (masterMaterial as any).roughness = Math.max(0.14, (masterMaterial as any).roughness * 0.9);
+          (masterMaterial as any).metalness = Math.min(0.95, (masterMaterial as any).metalness * 1.05);
+        }
+      }
+    });
+
+    const mat = masterMaterial || new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.2, metalness: 0.9 });
 
     let count = 0;
     gltf.scene.traverse((child: any) => {
@@ -204,27 +328,59 @@ const FloatingIconsScene: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }
         const center = new THREE.Vector3();
         bbox.getCenter(center);
 
-        // Clone and center the geometry locally around (0,0,0)
-        const centeredGeom = child.geometry.clone();
-        centeredGeom.center();
-
         // Scale and map model position to wider viewport coordinates
         const spreadFactorX = 3.6;
         const spreadFactorY = 2.8;
         const spreadFactorZ = 2.0;
+
+        // Detect if this mesh contains two fused icons (specifically geometry_0.009 which has both the 'M' logo and circular emblem)
+        const isFusedDualIcon = child.name === 'geometry_0.009' || (bbox.max.y - bbox.min.y > 0.45 && Math.abs(center.x - 0.057) < 0.1);
+
+        if (isFusedDualIcon) {
+          // Split the single fused mesh into two completely distinct, isolated icons
+          const { topGeom, bottomGeom, topCenter, bottomCenter } = splitDualIconMesh(child.geometry, 0.068);
+
+          // Top icon ('M' logo) - separate upwards and slightly left
+          const topPos = new THREE.Vector3(
+            topCenter.x * spreadFactorX - 0.05,
+            topCenter.y * spreadFactorY + 0.16,
+            topCenter.z * spreadFactorZ
+          );
+
+          // Bottom icon (circular emblem) - separate downwards and slightly right
+          const bottomPos = new THREE.Vector3(
+            bottomCenter.x * spreadFactorX + 0.05,
+            bottomCenter.y * spreadFactorY - 0.16,
+            bottomCenter.z * spreadFactorZ
+          );
+
+          meshes.push({
+            id: `icon-${count++}-top-m`,
+            name: `${child.name}_top_M`,
+            geometry: topGeom,
+            material: mat,
+            basePosition: topPos,
+          });
+
+          meshes.push({
+            id: `icon-${count++}-bottom-circle`,
+            name: `${child.name}_bottom_circle`,
+            geometry: bottomGeom,
+            material: mat,
+            basePosition: bottomPos,
+          });
+          return;
+        }
+
+        // Clone and center the geometry locally around (0,0,0)
+        const centeredGeom = child.geometry.clone();
+        centeredGeom.center();
 
         const basePos = new THREE.Vector3(
           center.x * spreadFactorX,
           center.y * spreadFactorY,
           center.z * spreadFactorZ
         );
-
-        // Clone material and enhance lighting & surface response without front emission
-        const mat = child.material ? child.material.clone() : new THREE.MeshStandardMaterial({ color: '#ffffff' });
-        if (mat.isMeshStandardMaterial) {
-          mat.roughness = Math.max(0.14, mat.roughness * 0.9);
-          mat.metalness = Math.min(0.95, mat.metalness * 1.05);
-        }
 
         meshes.push({
           id: `icon-${count++}`,
@@ -254,6 +410,43 @@ const FloatingIconsScene: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }
       ))}
     </group>
   );
+};
+
+// Adaptive Render Controller: throttles R3F rendering to 45 FPS during active interaction,
+// and 30 FPS when idle floating, preventing GPU overheating and fan noise on 120Hz/144Hz monitors.
+const AdaptiveRenderController: React.FC = () => {
+  const lastRenderTime = useRef(0);
+  const isInteracting = useRef(false);
+  const interactionTimer = useRef<any>(null);
+
+  useEffect(() => {
+    const handleMove = () => {
+      isInteracting.current = true;
+      if (interactionTimer.current) clearTimeout(interactionTimer.current);
+      interactionTimer.current = setTimeout(() => {
+        isInteracting.current = false;
+      }, 1200);
+    };
+
+    window.addEventListener('pointermove', handleMove, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      if (interactionTimer.current) clearTimeout(interactionTimer.current);
+    };
+  }, []);
+
+  useFrame((state) => {
+    const targetFps = isInteracting.current ? 45 : 30;
+    const interval = 1000 / targetFps;
+    const now = performance.now();
+
+    if (now - lastRenderTime.current >= interval) {
+      lastRenderTime.current = now - ((now - lastRenderTime.current) % interval);
+      state.gl.render(state.scene, state.camera);
+    }
+  }, 1);
+
+  return null;
 };
 
 // Subtle, soft volumetric glow backdrop located strictly behind the 3D model (z = -2.4)
@@ -309,7 +502,7 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
 
     // Check if already in or near view on initial load
     const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight + 120 && rect.bottom > -120) {
+    if (rect.top < window.innerHeight + 50 && rect.bottom > -50) {
       setIsInView(true);
     }
 
@@ -317,7 +510,7 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
       ([entry]) => {
         setIsInView(entry.isIntersecting);
       },
-      { rootMargin: '120px' }
+      { rootMargin: '50px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -331,23 +524,33 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
       id="floating-icons" 
       className="relative w-full max-w-7xl mx-auto py-10 sm:py-16 px-2 sm:px-4 select-none overflow-hidden"
     >
-      {/* Soft Ambient Background Glow strictly behind the 3D Canvas */}
+      {/* Soft Ambient Background Glow strictly behind the 3D Canvas (using pure radial CSS gradient without GPU-heavy blur filter) */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center -z-10 overflow-hidden">
         <div 
-          className="w-full max-w-[620px] sm:max-w-[860px] lg:max-w-[1080px] h-[300px] sm:h-[400px] lg:h-[460px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.18)_0%,rgba(16,185,129,0.07)_45%,transparent_70%)] blur-[75px] sm:blur-[100px]" 
+          className="w-full max-w-[620px] sm:max-w-[860px] lg:max-w-[1080px] h-[300px] sm:h-[400px] lg:h-[460px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.16)_0%,rgba(16,185,129,0.06)_40%,rgba(0,0,0,0)_70%)]" 
         />
       </div>
 
       {/* Seamless Transparent 3D Stage without frame or borders */}
       <div className="relative w-full h-[360px] sm:h-[480px] lg:h-[650px] overflow-hidden z-0">
-        {/* R3F Canvas - idle 'demand' mode when far offscreen, active 'always' when near/in view */}
+        {/* R3F Canvas - throttled with AdaptiveRenderController & halts rendering when offscreen */}
         <Canvas
-          frameloop={shouldRender ? 'always' : 'demand'}
+          frameloop={shouldRender ? 'always' : 'never'}
           camera={{ position: [0, 0, 5.4], fov: 45 }}
           className="w-full h-full"
-          dpr={[1, 1.25]}
-          gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}
+          dpr={1}
+          gl={{
+            antialias: true,
+            alpha: true,
+            powerPreference: 'low-power',
+            precision: 'mediump',
+            stencil: false,
+            depth: true,
+          }}
         >
+          {/* Framerate Controller: caps rendering to 45 FPS (moving) / 30 FPS (idle) */}
+          <AdaptiveRenderController />
+
           {/* Clean Neutral Studio Lighting on Front of Icons */}
           <ambientLight intensity={0.9} />
           <directionalLight position={[4, 6, 5]} intensity={1.1} color="#ffffff" />

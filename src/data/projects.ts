@@ -10,6 +10,8 @@ import sweepn07Buyers from '../assets/images/sweepn_slide_07_buyers.png';
 import sweepn08Validation from '../assets/images/sweepn_slide_08_validation.png';
 import sweepn09BusinessModel from '../assets/images/sweepn_slide_09_businessmodel.png';
 import sweepn10Communication from '../assets/images/sweepn_slide_10_communication.png';
+import sweepnVendeurMotion from '../assets/images/sweepn_vendeur_motion.mp4';
+import sweepnAcheteurMotion from '../assets/images/sweepn_acheteur_motion.mp4';
 import anthem01Cover from '../assets/images/IMG_7658.jpeg';
 import anthem02Portrait from '../assets/images/IMG_7657.jpeg';
 import anthem03Collection from '../assets/images/IMG_7656.jpeg';
@@ -65,6 +67,10 @@ import neben11BadgePink from '../assets/images/Virtualthreads_3.png';
 import neben12PatchGreyTee from '../assets/images/F63C7C89-EC9D-4AAD-915E-3DD19AA3D313.png';
 import neben13BlackTeeStore from '../assets/images/Untitled_Project_2.jpg';
 import neben14EmbroideryZoom from '../assets/images/Untitled_Project_1.jpg';
+import linaInvitationVideo from '../assets/images/lina_invitation_video.mp4';
+import linaBlenderProcess from '../assets/images/lina_blender_process.mp4';
+import linaPosterVisual from '../assets/images/lina_poster_visual.jpg';
+import linaAeVfx from '../assets/images/lina_ae_vfx.png';
 
 const assetImageModules = import.meta.glob<string>('../assets/images/*.{png,jpg,jpeg,webp,PNG,JPG,JPEG}', { eager: true, import: 'default' });
 
@@ -161,6 +167,16 @@ export const projects: Project[] = [
         type: 'image',
         url: sweepn10Communication,
         caption: "Slide 10 // Notre communication : Site internet promotionnel Sweepn.fr et réseaux sociaux @sweepn.app."
+      },
+      {
+        type: 'video',
+        url: sweepnVendeurMotion,
+        caption: "Slide 11 // MOTION DESIGN — EXPÉRIENCE VENDEUR : Spot promotionnel animé présentant le parcours de mise en vente (catégories, photos et fixation du prix en Sweep)."
+      },
+      {
+        type: 'video',
+        url: sweepnAcheteurMotion,
+        caption: "Slide 12 // MOTION DESIGN — EXPÉRIENCE ACHETEUR : Spot promotionnel animé présentant l'achat de Sweep, la sélection des annonces et la participation au jeu du chrono."
       }
     ],
     interactive3DType: 'cube',
@@ -808,6 +824,63 @@ export const projects: Project[] = [
       }
     ].filter((slide): slide is { type: 'image' | 'video'; url: string; caption: string } => Boolean(slide.url)),
     interactive3DType: 'cylinder',
+    featured: true
+  },
+  {
+    id: 'lina-18th-invitation',
+    slug: 'lina-18th-invitation',
+    title: 'Vidéo anniversaire',
+    subtitle: "Vidéo d'Invitation 3D, VFX & Direction Artistique Fantaisie",
+    client: 'Projet fantaisie (invitation)',
+    year: '2025',
+    category: '3D',
+    tags: ['3D Animation', 'VFX', 'Blender', 'After Effects', 'Motion Design', 'Direction Artistique'],
+    summary: "Création d'un court-métrage d'invitation cinématographique pour les 18 ans de ma sœur Lina : hommage fantastique à « Retour vers le Futur », modélisation et animation 3D de la DeLorean sur Blender, incrustations VFX et interface holographique sur After Effects.",
+    description: "Projet fantaisie et personnel mêlant cinéma rétro-futuriste, modélisation 3D avancée et post-production VFX. Hommage vibrant à la saga culte « Retour vers le Futur », ce film d'invitation met en scène l'arrivée spatio-temporelle de la mythique DeLorean en mode hover, l'atterrissage sur le bitume avec effets volumétriques de fumée, une interface holographique de montre connectée traquant le compte à rebours, et la révélation finale avec un logo 3D chromé aux éclairs néon 80s « LINA FÊTE SES 18 ANS ».",
+    heroImage: linaPosterVisual,
+    secondaryImage: linaBlenderProcess,
+    secondaryBottomImage: linaPosterVisual,
+    accentColor: '#00F0FF',
+    gradient: 'from-cyan-500/20 via-purple-600/15 to-pink-500/10',
+    role: ['Directeur Artistique', '3D Generalist (Blender)', 'Superviseur VFX (After Effects)', 'Motion Designer', 'Monteur Vidéo'],
+    tools: ['Blender 3D', 'Adobe After Effects', 'Premiere Pro', 'Photoshop'],
+    metrics: [
+      { label: 'Pipeline 3D', value: 'Blender & Cycles' },
+      { label: 'Compositing VFX', value: 'After Effects' },
+      { label: 'Univers Visuel', value: 'Sci-Fi / Rétro-Futuriste' }
+    ],
+    deliverables: [
+      "Film d'invitation complet 3D & prise de vue réelle au format cinéma 16:9",
+      "Modélisation, texturing et cinématique de vol de la DeLorean spatio-temporelle sur Blender",
+      "Incrustation VFX, tracking motion et interface holographique futuriste sur After Effects",
+      "Création du logo typographique 3D chrome & néons 80s « LINA FÊTE SES 18 ANS »",
+      "Affiche & key visual promotionnel rétro-futuriste"
+    ],
+    videoUrl: linaInvitationVideo,
+    videoCaption: "Court-métrage d'invitation complet — Animation 3D DeLorean sur Blender & incrustations VFX After Effects",
+    gallery: [
+      {
+        type: 'video',
+        url: linaInvitationVideo,
+        caption: "Slide 01 // FILM CINÉMATOGRAPHIQUE COMPLET : Démonstration complète de l'invitation vidéo avec intro Universal revisitée, DeLorean spatio-temporelle en vol, atterrissage VFX et révélation de l'événement."
+      },
+      {
+        type: 'video',
+        url: linaBlenderProcess,
+        caption: "Slide 02 // WORKFLOW 3D BLENDER : Modélisation, rigging cinématique des roues en mode hover et animation de trajectoire aérienne de la DeLorean."
+      },
+      {
+        type: 'image',
+        url: linaPosterVisual,
+        caption: "Slide 03 // KEY VISUAL & LOGO 80s : Poster officiel aux teintes néon synthwave avec visière cybernétique et typographie chromée rétro « LINA FÊTE SES 18 ANS »."
+      },
+      {
+        type: 'image',
+        url: linaAeVfx,
+        caption: "Slide 04 // COMPOSITING AFTER EFFECTS : Découpage multi-pistes, incrustation de poussière, distorsions, colorimétrie et effets d'impact spatio-temporel."
+      }
+    ],
+    interactive3DType: 'torus',
     featured: true
   }
 ];
