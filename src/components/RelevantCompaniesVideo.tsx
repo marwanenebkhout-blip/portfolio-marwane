@@ -66,20 +66,15 @@ export const RelevantCompaniesVideo: React.FC = () => {
     };
   }, [hasPlayedInCurrentView, playOnce]);
 
-  // Click handler if user wants to replay manually
-  const handleClick = () => {
-    playOnce();
-  };
-
   return (
-    <div ref={containerRef} className="space-y-3 pt-6 sm:pt-10">
+    <div ref={containerRef} className="space-y-3 pt-6 sm:pt-10 select-none">
       {/* Title with matching typography to "Formation & Diplômes" */}
       <h3 className="font-display text-xl font-bold uppercase tracking-tight text-white flex items-center gap-2">
         <Briefcase className="h-4 w-4 text-[#39FF14]" />
         <span>{t('about.companiesTitle')}</span>
       </h3>
 
-      {/* Floating Video without outer borders */}
+      {/* Floating Video without outer borders - non-interactive display */}
       <motion.div
         animate={{
           y: [-6, 6, -6],
@@ -90,9 +85,7 @@ export const RelevantCompaniesVideo: React.FC = () => {
           repeat: Infinity,
           ease: 'easeInOut',
         }}
-        className="w-full flex items-center justify-center cursor-pointer py-2"
-        onClick={handleClick}
-        title={t('about.replayVideo')}
+        className="w-full flex items-center justify-center py-2 pointer-events-none"
       >
         <div className="relative w-full max-w-[380px] aspect-[922/756] flex items-center justify-center bg-transparent">
           <video

@@ -26,6 +26,10 @@ interface FloatingIconsFieldProps {
   isPaused?: boolean;
 }
 
+interface FloatingIconsSceneProps extends FloatingIconsFieldProps {
+  pointerActiveRef: React.MutableRefObject<boolean>;
+}
+
 interface SingleIconProps {
   geometry: THREE.BufferGeometry;
   material: THREE.Material;
@@ -33,6 +37,7 @@ interface SingleIconProps {
   index: number;
   name: string;
   setCursorMode?: (mode: CursorMode, text?: string) => void;
+  pointerActiveRef: React.MutableRefObject<boolean>;
 }
 
 const MODEL_URL = '/models/v3_icone.glb';
@@ -47,6 +52,7 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
   basePosition,
   index,
   setCursorMode,
+  pointerActiveRef,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   
@@ -69,10 +75,10 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
     };
   }, [index]);
 
-  // Spring physics variables
+  // Spring physics variables - initialized directly to resting base position
   const currentPos = useRef(basePosition.clone());
   const velocity = useRef(new THREE.Vector3(0, 0, 0));
-  const targetPos = useMemo(() => new THREE.Vector3(), []);
+  const targetPos = useMemo(() => basePosition.clone(), [basePosition]);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
@@ -84,35 +90,37 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
     const levitateY = basePosition.y + Math.sin(t * params.floatSpeed + params.phase) * params.floatAmpY;
     const levitateZ = basePosition.z + Math.cos(t * params.floatSpeed * 0.8 + params.phase) * params.floatAmpZ;
 
-    // 2. Cursor repulsion physics (calculate cursor position on world plane)
-    const { pointer, viewport } = state;
-    const cursorWorldX = pointer.x * (viewport.width * 0.5);
-    const cursorWorldY = pointer.y * (viewport.height * 0.5);
-
-    const dx = currentPos.current.x - cursorWorldX;
-    const dy = currentPos.current.y - cursorWorldY;
-    const dist2DSq = dx * dx + dy * dy;
-    const repelRadiusSq = 3.61; // 1.9 * 1.9
-
     let pushX = 0;
     let pushY = 0;
     let pushZ = 0;
     let targetScale = 1.0;
 
-    // Active cursor repulsion only when within radius (avoid heavy sqrt/pow when far)
-    if (dist2DSq < repelRadiusSq) {
-      const dist2D = Math.sqrt(dist2DSq);
-      const force = Math.pow(1 - dist2D / 1.9, 1.6);
-      const invDist = 1 / (dist2D + 0.0001);
-      const dirX = dx * invDist;
-      const dirY = dy * invDist;
+    // 2. Cursor repulsion physics - ONLY active when the user's mouse is hovering inside the canvas
+    // Prevents phantom (0,0) center cursor from blowing all icons apart on initial scroll
+    if (pointerActiveRef?.current) {
+      const { pointer, viewport } = state;
+      const cursorWorldX = pointer.x * (viewport.width * 0.5);
+      const cursorWorldY = pointer.y * (viewport.height * 0.5);
 
-      // Repel away from cursor on X/Y and project forward in +Z towards user
-      pushX = dirX * force * 1.5;
-      pushY = dirY * force * 1.5;
-      pushZ = force * 2.2;
+      const dx = currentPos.current.x - cursorWorldX;
+      const dy = currentPos.current.y - cursorWorldY;
+      const dist2DSq = dx * dx + dy * dy;
+      const repelRadiusSq = 3.61; // 1.9 * 1.9
 
-      targetScale = 1.0 + force * 0.25;
+      if (dist2DSq < repelRadiusSq) {
+        const dist2D = Math.sqrt(dist2DSq);
+        const force = Math.pow(1 - dist2D / 1.9, 1.6);
+        const invDist = 1 / (dist2D + 0.0001);
+        const dirX = dx * invDist;
+        const dirY = dy * invDist;
+
+        // Repel away from cursor on X/Y and project forward in +Z towards user
+        pushX = dirX * force * 1.5;
+        pushY = dirY * force * 1.5;
+        pushZ = force * 2.2;
+
+        targetScale = 1.0 + force * 0.25;
+      }
     }
 
     targetPos.set(levitateX + pushX, levitateY + pushY, levitateZ + pushZ);
@@ -164,6 +172,7 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
   return (
     <mesh
       ref={meshRef}
+      position={[basePosition.x, basePosition.y, basePosition.z]}
       geometry={geometry}
       material={material}
       onPointerOver={handlePointerOver}
@@ -310,7 +319,7 @@ function splitDualIconMesh(
 }
 
 // Component parsing the GLB file into individual centered meshes
-const FloatingIconsScene: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }) => {
+const FloatingIconsScene: React.FC<FloatingIconsSceneProps> = ({ setCursorMode, pointerActiveRef }) => {
   const gltf = useGLTF(MODEL_URL, DRACO_DECODER_PATH) as any;
   const { viewport } = useThree();
 
@@ -431,6 +440,7 @@ const FloatingIconsScene: React.FC<FloatingIconsFieldProps> = ({ setCursorMode }
           material={item.material}
           basePosition={item.basePosition}
           setCursorMode={setCursorMode}
+          pointerActiveRef={pointerActiveRef}
         />
       ))}
     </group>
@@ -512,13 +522,23 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
   const sectionRef = useRef<HTMLElement>(null);
   const [isInView, setIsInView] = useState(false);
   const [isTabVisible, setIsTabVisible] = useState(!document.hidden);
+  const pointerActiveRef = useRef(false);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
       setIsTabVisible(!document.hidden);
     };
+    const handleScroll = () => {
+      // Deactivate repulsion during scrolling so icons remain undisturbed and in place
+      pointerActiveRef.current = false;
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -527,7 +547,7 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
 
     // Check if already in or near view on initial load
     const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight + 50 && rect.bottom > -50) {
+    if (rect.top < window.innerHeight + 250 && rect.bottom > -250) {
       setIsInView(true);
     }
 
@@ -535,7 +555,7 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
       ([entry]) => {
         setIsInView(entry.isIntersecting);
       },
-      { rootMargin: '50px' }
+      { rootMargin: '250px 0px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -557,7 +577,25 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
       </div>
 
       {/* Seamless Transparent 3D Stage without frame or borders */}
-      <div className="relative w-full h-[360px] sm:h-[480px] lg:h-[650px] overflow-hidden z-0">
+      <div 
+        className="relative w-full h-[360px] sm:h-[480px] lg:h-[650px] overflow-hidden z-0"
+        onPointerEnter={(e) => {
+          if (e.pointerType !== 'touch') {
+            pointerActiveRef.current = true;
+          }
+        }}
+        onPointerMove={(e) => {
+          if (e.pointerType !== 'touch') {
+            pointerActiveRef.current = true;
+          }
+        }}
+        onPointerLeave={() => {
+          pointerActiveRef.current = false;
+        }}
+        onPointerCancel={() => {
+          pointerActiveRef.current = false;
+        }}
+      >
         {/* R3F Canvas - throttled with AdaptiveRenderController & halts rendering when offscreen */}
         <Canvas
           frameloop={shouldRender ? 'always' : 'never'}
@@ -590,7 +628,7 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
           {/* Suspense with Fallback and Error Boundary */}
           <Suspense fallback={null}>
             <SceneErrorBoundary>
-              <FloatingIconsScene setCursorMode={setCursorMode} />
+              <FloatingIconsScene setCursorMode={setCursorMode} pointerActiveRef={pointerActiveRef} />
             </SceneErrorBoundary>
             <Preload all />
           </Suspense>
