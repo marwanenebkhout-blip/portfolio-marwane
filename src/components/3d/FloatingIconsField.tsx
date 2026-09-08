@@ -194,6 +194,20 @@ function splitDualIconMesh(
 
   const triCount = indexAttr ? indexAttr.count / 3 : posAttr.count / 3;
 
+  // Exact circle geometry parameters:
+  // Center is (0.1194, -0.0598), with horizontal radius 0.1521 and vertical radius 0.1434.
+  // The true top edge of the circle reaches Y = 0.0834 at the apex.
+  const circleCenterX = 0.1194;
+  const circleCenterY = -0.0598;
+  const circleRadiusX = 0.1521;
+  const circleRadiusY = 0.1434;
+
+  const getCircleTopRimY = (x: number) => {
+    const rx = (x - circleCenterX) / circleRadiusX;
+    if (Math.abs(rx) > 1) return -Infinity;
+    return circleCenterY + circleRadiusY * Math.sqrt(1 - rx * rx);
+  };
+
   for (let t = 0; t < triCount; t++) {
     const i0 = indexAttr ? indexAttr.getX(t * 3) : t * 3;
     const i1 = indexAttr ? indexAttr.getX(t * 3 + 1) : t * 3 + 1;
@@ -209,16 +223,27 @@ function splitDualIconMesh(
     const x2 = posAttr.getX(i2);
     const avgX = (x0 + x1 + x2) / 3;
 
-    // Distinguish between the bottom circular emblem and the top 'M' icon.
-    // The upper arc of the circular emblem reaches up to y ~ 0.103 at x > 0.079.
-    // Classifying this correctly gives the circular emblem its full round boundary
-    // and completely eliminates the black trait/tail artifact from the bottom-right of the 'M' icon.
-    const isBottomCircle = avgY < splitY || (avgY < 0.103 && avgX > 0.079);
-
-    if (isBottomCircle) {
+    if (avgY < splitY) {
+      // Uncontested bottom portion of the circular 'U' emblem
       bottomTriangles.push([i0, i1, i2]);
     } else {
-      topTriangles.push([i0, i1, i2]);
+      // In the upper portion (avgY >= splitY):
+      const topRimY = getCircleTopRimY(avgX);
+
+      // 1. Natural upper arc of the circular 'U' emblem:
+      // Perfectly adheres to the circular outer rim (max Y ~ 0.0834).
+      if (avgX >= 0.075 && avgY <= topRimY + 0.0005) {
+        bottomTriangles.push([i0, i1, i2]);
+      } 
+      // 2. Connector artifact / stalk between the two icons (above the circle rim, below Maya):
+      // Discarding these triangles eliminates both the black trait on the 'M' and the antenna/tick at the top of the 'U'.
+      else if (avgX >= 0.075 && avgY < 0.104 && avgY > topRimY + 0.0005) {
+        // Discard - belongs to neither icon
+      } 
+      // 3. Clean 'M' (Maya) logo:
+      else {
+        topTriangles.push([i0, i1, i2]);
+      }
     }
   }
 

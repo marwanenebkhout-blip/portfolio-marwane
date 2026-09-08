@@ -44,6 +44,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [isHeroVideoEnlarged, setIsHeroVideoEnlarged] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const enlargedVideoRef = useRef<HTMLVideoElement>(null);
 
   const isIkea = project?.id === 'ikea-motion-showcase' || project?.slug === 'ikea-motion-showcase' || (project?.title ? project.title.toLowerCase().includes('ikea') : false);
 
@@ -71,23 +72,74 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     try {
       audio.playMechanicalClick();
     } catch {}
-    setIsHeroVideoEnlarged(true);
 
-    try {
-      const v = videoRef.current as any;
-      if (v) {
-        if (typeof v.webkitEnterFullscreen === 'function') {
-          v.webkitEnterFullscreen();
-        } else if (typeof v.requestFullscreen === 'function') {
-          v.requestFullscreen().catch(() => {});
-        } else if (typeof v.webkitRequestFullscreen === 'function') {
-          v.webkitRequestFullscreen();
+    // Immediately pause and mute background video so only one video plays at a time
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.muted = true;
+    }
+
+    setIsHeroVideoEnlarged(true);
+  };
+
+  const handleCloseHeroVideoEnlarged = () => {
+    if (enlargedVideoRef.current) {
+      try {
+        const time = enlargedVideoRef.current.currentTime;
+        enlargedVideoRef.current.pause();
+        if (videoRef.current) {
+          videoRef.current.currentTime = time;
         }
+      } catch {}
+    }
+    setIsHeroVideoEnlarged(false);
+    if (videoRef.current) {
+      videoRef.current.muted = isIkea ? true : isMuted;
+      if (isPlaying && activeImageIndex === null) {
+        videoRef.current.play().catch(() => {});
       }
-    } catch {
-      // In-app portal provides guaranteed lightbox
     }
   };
+
+  const handleOpenGalleryItem = (idx: number) => {
+    try {
+      audio.playMechanicalClick();
+    } catch {}
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.muted = true;
+    }
+    setActiveImageIndex(idx);
+  };
+
+  const handleCloseGallery = () => {
+    setActiveImageIndex(null);
+    if (videoRef.current) {
+      videoRef.current.muted = isIkea ? true : isMuted;
+      if (isPlaying && !isHeroVideoEnlarged) {
+        videoRef.current.play().catch(() => {});
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Whenever project changes, reset all modal overlays & playback
+    setIsHeroVideoEnlarged(false);
+    setActiveImageIndex(null);
+    setIsPlaying(true);
+    setIsMuted(true);
+  }, [project.id]);
+
+  useEffect(() => {
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+      if (enlargedVideoRef.current) {
+        enlargedVideoRef.current.pause();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Lock background scroll when modal or lightbox is active
@@ -103,13 +155,13 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       if (!project) return;
       if (isHeroVideoEnlarged) {
         if (e.key === 'Escape') {
-          setIsHeroVideoEnlarged(false);
+          handleCloseHeroVideoEnlarged();
         }
         return;
       }
       if (activeImageIndex !== null) {
         if (e.key === 'Escape') {
-          setActiveImageIndex(null);
+          handleCloseGallery();
         } else if (e.key === 'ArrowRight' && project.gallery) {
           setActiveImageIndex((activeImageIndex + 1) % project.gallery.length);
         } else if (e.key === 'ArrowLeft' && project.gallery) {
@@ -226,9 +278,9 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   <video
                     ref={videoRef}
                     src={project.videoUrl}
-                    autoPlay
+                    autoPlay={!isHeroVideoEnlarged && activeImageIndex === null}
                     loop
-                    muted={isIkea ? true : isMuted}
+                    muted={isIkea || isHeroVideoEnlarged || activeImageIndex !== null ? true : isMuted}
                     playsInline
                     className="w-full h-full object-cover"
                   />
@@ -281,7 +333,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               createPortal(
                 <div
                   className="fixed inset-0 z-[99999] w-screen h-screen flex items-center justify-center p-2 sm:p-6 md:p-8 bg-black select-none overflow-hidden"
-                  onClick={() => setIsHeroVideoEnlarged(false)}
+                  onClick={handleCloseHeroVideoEnlarged}
                 >
                   <div
                     className="relative max-w-6xl w-full max-h-[96vh] flex flex-col items-center justify-center"
@@ -299,7 +351,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                         </span>
                       </div>
                       <button
-                        onClick={() => setIsHeroVideoEnlarged(false)}
+                        onClick={handleCloseHeroVideoEnlarged}
                         className="p-2 sm:px-3 sm:py-2 rounded-lg bg-white/15 hover:bg-white/25 active:bg-white/30 text-white transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 min-h-[44px] min-w-[44px] justify-center"
                         aria-label="Fermer"
                       >
@@ -312,9 +364,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     <div className="relative w-full max-h-[85vh] rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex items-center justify-center bg-black">
                       <video
                         ref={(el) => {
+                          enlargedVideoRef.current = el;
                           if (el && videoRef.current) {
                             try {
-                              if (Math.abs(el.currentTime - videoRef.current.currentTime) > 0.5) {
+                              if (Math.abs(el.currentTime - videoRef.current.currentTime) > 0.3) {
                                 el.currentTime = videoRef.current.currentTime;
                               }
                             } catch {}
@@ -325,7 +378,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                         autoPlay
                         playsInline
                         loop
-                        muted={isIkea ? true : false}
+                        muted={isIkea ? true : isMuted}
                         className="max-w-full max-h-[82vh] w-auto h-auto rounded-2xl object-contain block bg-black shadow-2xl"
                       />
                     </div>
@@ -468,10 +521,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   return (
                     <div
                       key={idx}
-                      onClick={() => {
-                        audio.playMechanicalClick();
-                        setActiveImageIndex(idx);
-                      }}
+                      onClick={() => handleOpenGalleryItem(idx)}
                       className="rounded-xl overflow-hidden bg-black border border-white/10 group cursor-pointer hover:border-white/40 transition-all hover:shadow-[0_0_30px_rgba(37,99,235,0.2)] relative"
                     >
                       <div className="aspect-[16/9] overflow-hidden bg-neutral-900 relative">
@@ -514,7 +564,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             createPortal(
               <div
                 className="fixed inset-0 z-[9999] w-screen h-screen flex items-center justify-center p-3 sm:p-6 md:p-8 bg-black select-none overflow-hidden"
-                onClick={() => setActiveImageIndex(null)}
+                onClick={handleCloseGallery}
               >
                 <div
                   className="relative max-w-6xl w-full max-h-[94vh] flex flex-col items-center justify-center"
@@ -530,7 +580,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       </span>
                     </div>
                     <button
-                      onClick={() => setActiveImageIndex(null)}
+                      onClick={handleCloseGallery}
                       className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <X className="h-4 w-4" />
@@ -542,9 +592,11 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   <div className="relative max-w-5xl w-auto max-h-[80vh] sm:max-h-[82vh] rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex items-center justify-center bg-black mx-auto">
                     {project.gallery[activeImageIndex].url && (project.gallery[activeImageIndex].url.endsWith('.mp4') || project.gallery[activeImageIndex].url.endsWith('.mov') || project.gallery[activeImageIndex].url.endsWith('.webm')) ? (
                       <video
+                        key={`gallery-video-${activeImageIndex}-${project.gallery[activeImageIndex].url}`}
                         src={project.gallery[activeImageIndex].url}
                         controls
                         autoPlay
+                        playsInline
                         muted={isIkea ? true : false}
                         className="max-w-full max-h-[80vh] sm:max-h-[82vh] w-auto h-auto rounded-2xl object-contain block bg-black"
                       />
