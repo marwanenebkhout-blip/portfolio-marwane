@@ -1,6 +1,7 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox, Text, Float } from '@react-three/drei';
+import { RoundedBoxGeometry } from 'three-stdlib';
 import * as THREE from 'three';
 import { audio } from '../../utils/audio';
 import { socialLinks } from '../../data/config';
@@ -15,7 +16,7 @@ interface MechanicalFooterKeyboardProps {
   isPaused?: boolean;
 }
 
-// Generate Instagram sunset gradient texture on canvas
+// Original Instagram sunset gradient texture on canvas with vibrant radial glow
 function createInstagramTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -39,8 +40,44 @@ function createInstagramTexture(): THREE.CanvasTexture {
   ctx.fillRect(0, 0, 512, 512);
 
   const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
+}
+
+// Custom 3D RoundedBox geometry with continuous planar UV mapping
+// Prevents the UV from flipping back to purple/red on the front bevel and skirt,
+// ensuring the gradient smoothly flows into golden amber at the bottom.
+function createInstagramKeycapGeometry(): THREE.BufferGeometry {
+  const geom = new RoundedBoxGeometry(1.62, 0.72, 1.62, 4, 0.16);
+  const pos = geom.attributes.position;
+  const uv = geom.attributes.uv;
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+
+    // Continuous planar projection:
+    // U runs across width (-0.81 to +0.81)
+    const u = Math.max(0.0, Math.min(1.0, (x + 0.81) / 1.62));
+
+    // V runs from back to front:
+    // Z = -0.81 (back) -> V = 1.0 (Purple/Magenta top of texture)
+    // Z = +0.81 (front) -> V = 0.0 (Golden Amber bottom of texture)
+    let v = 1.0 - (z + 0.81) / 1.62;
+    v = Math.max(0.0, Math.min(1.0, v));
+
+    // Front bevel and front skirt stay firmly at golden amber (V = 0.0)
+    // to follow the natural gradient without jumping back to red
+    if (z > 0.55 && y < 0.35) {
+      v = 0.0;
+    }
+
+    uv.setXY(i, u, v);
+  }
+  uv.needsUpdate = true;
+  return geom;
 }
 
 // Generate Brushed Gunmetal Metal Canvas Texture for the Chassis
@@ -89,12 +126,14 @@ interface KeyConfig {
 const Key3D = ({
   config,
   igTexture,
+  igGeometry,
   onHover,
   onUnhover,
   setCursorMode,
 }: {
   config: KeyConfig;
   igTexture: THREE.CanvasTexture;
+  igGeometry: THREE.BufferGeometry;
   onHover: (info: string) => void;
   onUnhover: () => void;
   setCursorMode: (mode: CursorMode, text?: string) => void;
@@ -165,20 +204,22 @@ const Key3D = ({
       {/* Dynamic Keycap Assembly with Physics Spring */}
       <group ref={meshRef}>
         {/* Main 3D Keycap Shell with Chamfered Edges */}
-        <RoundedBox
-          args={[width, height, depth]}
-          radius={0.16}
-          smoothness={4}
-        >
-          {config.textureType === 'ig' ? (
+        {config.textureType === 'ig' ? (
+          <mesh geometry={igGeometry}>
             <meshStandardMaterial
               map={igTexture}
               roughness={0.2}
-              metalness={0.3}
-              emissive="#e11d48"
-              emissiveIntensity={isHovered ? 0.4 : 0.15}
+              metalness={0.25}
+              emissive="#ea580c"
+              emissiveIntensity={isHovered ? 0.25 : 0.02}
             />
-          ) : (
+          </mesh>
+        ) : (
+          <RoundedBox
+            args={[width, height, depth]}
+            radius={0.16}
+            smoothness={4}
+          >
             <meshStandardMaterial
               color={config.color}
               roughness={config.roughness}
@@ -186,20 +227,13 @@ const Key3D = ({
               emissive={config.emissiveColor}
               emissiveIntensity={isHovered ? 0.35 : config.emissiveIntensity}
             />
-          )}
-        </RoundedBox>
+          </RoundedBox>
+        )}
 
-        {/* Concave Keycap Dish Inset on Top Face */}
-        <mesh position={[0, height / 2 + 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[width * 0.82, depth * 0.82]} />
-          {config.textureType === 'ig' ? (
-            <meshStandardMaterial
-              map={igTexture}
-              roughness={0.25}
-              emissive="#e11d48"
-              emissiveIntensity={isHovered ? 0.5 : 0.2}
-            />
-          ) : (
+        {/* Concave Keycap Dish Inset on Top Face (for solid matte keycaps) */}
+        {config.textureType !== 'ig' && (
+          <mesh position={[0, height / 2 + 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[width * 0.82, depth * 0.82]} />
             <meshStandardMaterial
               color={config.color}
               roughness={config.roughness + 0.08}
@@ -207,8 +241,8 @@ const Key3D = ({
               emissive={config.emissiveColor}
               emissiveIntensity={isHovered ? 0.25 : 0.05}
             />
-          )}
-        </mesh>
+          </mesh>
+        )}
 
         {/* Crisp Bold 3D Centered Legend */}
         <Text
@@ -273,6 +307,7 @@ const KeyboardScene = ({
   const chassisRef = useRef<THREE.Group>(null);
   const [activeHoverInfo, setActiveHoverInfo] = useState<string | null>(null);
   const igTexture = useMemo(() => createInstagramTexture(), []);
+  const igGeometry = useMemo(() => createInstagramKeycapGeometry(), []);
   const metalTexture = useMemo(() => createBrushedMetalTexture(), []);
 
   // Compute responsive scale so the entire 3D mechanical keyboard chassis (~14.6 units wide)
@@ -629,6 +664,7 @@ const KeyboardScene = ({
           key={k.id}
           config={k}
           igTexture={igTexture}
+          igGeometry={igGeometry}
           onHover={(info) => setActiveHoverInfo(info)}
           onUnhover={() => setActiveHoverInfo(null)}
           setCursorMode={setCursorMode}
@@ -719,16 +755,30 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
   return (
     <div 
       ref={containerRef}
-      className="w-full max-w-[1380px] mx-auto select-none overflow-hidden"
+      className="relative isolate w-full max-w-[1380px] mx-auto select-none overflow-visible"
     >
       {/* 3D WebGL Canvas Container with optimized responsive height */}
-      <div className="relative w-full h-[260px] sm:h-[360px] md:h-[440px] lg:h-[500px] overflow-hidden flex items-center justify-center">
+      <div className="relative w-full h-[260px] sm:h-[360px] md:h-[440px] lg:h-[500px] overflow-visible flex items-center justify-center">
         
-        {/* Ambient Neon Green Halo Backlight Behind Keyboard */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[650px] sm:max-w-[950px] lg:max-w-[1150px] h-[200px] sm:h-[350px] bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.3)_0%,rgba(57,255,20,0.1)_45%,rgba(57,255,20,0.02)_70%,transparent_85%)] blur-[40px] sm:blur-[70px] pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[450px] sm:max-w-[750px] lg:max-w-[900px] h-[150px] sm:h-[280px] bg-[#39FF14]/12 blur-[60px] sm:blur-[90px] rounded-full pointer-events-none" />
+        {/* Ambient Neon Green Halo Backlight Behind Keyboard - Vibrant, Volumetric & Perfectly Diffuse */}
+        {/* Wide atmospheric aura with soft radial falloff into black */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[650px] sm:max-w-[950px] lg:max-w-[1150px] h-[220px] sm:h-[360px] bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.36)_0%,rgba(57,255,20,0.18)_35%,rgba(57,255,20,0.04)_65%,transparent_82%)] blur-[45px] sm:blur-[75px] pointer-events-none z-0" 
+          aria-hidden="true"
+        />
+        {/* Concentrated neon green glow hugging the 3D chassis */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[450px] sm:max-w-[750px] lg:max-w-[900px] h-[160px] sm:h-[270px] bg-[#39FF14]/18 blur-[50px] sm:blur-[85px] rounded-full pointer-events-none z-0" 
+          aria-hidden="true"
+        />
+        {/* Core underglow center */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[550px] h-[100px] sm:h-[160px] bg-[#39FF14]/28 blur-[35px] sm:blur-[55px] rounded-full pointer-events-none z-0" 
+          aria-hidden="true"
+        />
 
         <Canvas
+          className="relative z-10 w-full h-full"
           frameloop={shouldRender ? 'always' : 'never'}
           camera={{ position: [0, 8.5, 6.2], fov: 42 }}
           dpr={1}
