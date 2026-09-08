@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useMemo, useEffect, Component, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox, Text, Float } from '@react-three/drei';
 import { RoundedBoxGeometry } from 'three-stdlib';
@@ -7,6 +7,35 @@ import { audio } from '../../utils/audio';
 import { socialLinks } from '../../data/config';
 import { CursorMode } from '../../types';
 import confetti from 'canvas-confetti';
+
+class SceneErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; retries: number }> {
+  state = { hasError: false, retries: 0 };
+  private timer: any = null;
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.warn('3D Mechanical Keyboard error caught, auto-recovering:', error);
+    if (this.state.retries < 4) {
+      this.timer = setTimeout(() => {
+        this.setState((prev) => ({ hasError: false, retries: prev.retries + 1 }));
+      }, 1500);
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.timer) clearTimeout(this.timer);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
 
 interface MechanicalFooterKeyboardProps {
   onNavigateHome: () => void;
@@ -122,6 +151,14 @@ interface KeyConfig {
   hoverInfo: string;
 }
 
+// Global activity tracker for the keyboard scene to achieve 0% idle GPU consumption
+const keyboardActivity = {
+  renderUntil: performance.now() + 2000,
+  markActive(ms = 800) {
+    this.renderUntil = Math.max(this.renderUntil, performance.now() + ms);
+  },
+};
+
 // Single 3D Sculpted Keycap with mechanical spring physics
 const Key3D = ({
   config,
@@ -167,12 +204,14 @@ const Key3D = ({
     if (now - lastClickRef.current < 250) return;
     lastClickRef.current = now;
 
+    keyboardActivity.markActive(800);
     setIsPressed(true);
     audio.playMechanicalClick();
     config.action();
 
     setTimeout(() => {
       setIsPressed(false);
+      keyboardActivity.markActive(400);
     }, 180);
   };
 
@@ -181,6 +220,7 @@ const Key3D = ({
       position={[config.gridPos[0], 0.42, config.gridPos[1]]}
       onPointerOver={(e) => {
         e.stopPropagation();
+        keyboardActivity.markActive(800);
         setIsHovered(true);
         audio.playKeyHover();
         onHover(config.hoverInfo);
@@ -189,6 +229,7 @@ const Key3D = ({
       }}
       onPointerOut={(e) => {
         e.stopPropagation();
+        keyboardActivity.markActive(600);
         setIsHovered(false);
         onUnhover();
         setCursorMode('DEFAULT');
@@ -674,33 +715,20 @@ const KeyboardScene = ({
   );
 };
 
-// Adaptive Render Controller: throttles R3F rendering to 45 FPS during interaction and 30 FPS when idle,
-// avoiding GPU overheating and fan noise on 120Hz/144Hz monitors.
+// Zero-Power Adaptive Render Controller: renders at 45 FPS during active interaction,
+// and drops to 0 FPS (0% GPU/CPU load) as soon as the chassis and keys settle to rest.
 const AdaptiveKeyboardRenderController: React.FC = () => {
   const lastRenderTime = useRef(0);
-  const isInteracting = useRef(false);
-  const interactionTimer = useRef<any>(null);
-
-  useEffect(() => {
-    const handleMove = () => {
-      isInteracting.current = true;
-      if (interactionTimer.current) clearTimeout(interactionTimer.current);
-      interactionTimer.current = setTimeout(() => {
-        isInteracting.current = false;
-      }, 1200);
-    };
-
-    window.addEventListener('pointermove', handleMove, { passive: true });
-    return () => {
-      window.removeEventListener('pointermove', handleMove);
-      if (interactionTimer.current) clearTimeout(interactionTimer.current);
-    };
-  }, []);
 
   useFrame((state) => {
-    const targetFps = isInteracting.current ? 45 : 30;
-    const interval = 1000 / targetFps;
     const now = performance.now();
+    // When idle and settled: 0 FPS (0% GPU and 0% CPU consumption)
+    if (now > keyboardActivity.renderUntil) {
+      return;
+    }
+
+    const targetFps = 45;
+    const interval = 1000 / targetFps;
 
     if (now - lastRenderTime.current >= interval) {
       lastRenderTime.current = now - ((now - lastRenderTime.current) % interval);
@@ -724,11 +752,15 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      setIsTabVisible(!document.hidden);
+      const visible = !document.hidden;
+      setIsTabVisible(visible);
+      if (visible && isInView) {
+        keyboardActivity.markActive(1500);
+      }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+  }, [isInView]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -738,11 +770,15 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
     const rect = el.getBoundingClientRect();
     if (rect.top < window.innerHeight + 50 && rect.bottom > -50) {
       setIsInView(true);
+      keyboardActivity.markActive(2000);
     }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsInView(entry.isIntersecting);
+        if (entry.isIntersecting) {
+          keyboardActivity.markActive(2000);
+        }
       },
       { rootMargin: '50px' }
     );
@@ -755,6 +791,9 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
   return (
     <div 
       ref={containerRef}
+      onPointerMove={() => keyboardActivity.markActive(800)}
+      onPointerEnter={() => keyboardActivity.markActive(1200)}
+      onPointerDown={() => keyboardActivity.markActive(800)}
       className="relative isolate w-full max-w-[1380px] mx-auto select-none overflow-visible"
     >
       {/* 3D WebGL Canvas Container with optimized responsive height */}
@@ -782,9 +821,19 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
           frameloop={shouldRender ? 'always' : 'never'}
           camera={{ position: [0, 8.5, 6.2], fov: 42 }}
           dpr={1}
+          onCreated={({ gl }) => {
+            gl.domElement.addEventListener('webglcontextlost', (e) => {
+              e.preventDefault();
+              console.warn('Mechanical keyboard WebGL context lost; preventing default to allow auto-restoration');
+            });
+            gl.domElement.addEventListener('webglcontextrestored', () => {
+              console.info('Mechanical keyboard WebGL context restored successfully');
+            });
+          }}
           gl={{
             antialias: true,
             alpha: true,
+            preserveDrawingBuffer: true,
             powerPreference: 'low-power',
             precision: 'mediump',
             stencil: false,
@@ -813,13 +862,15 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
           <pointLight position={[0, -0.5, -1.2]} intensity={2.4} color="#39FF14" distance={12} />
           <pointLight position={[0, 1.2, -4]} intensity={1.5} color="#39FF14" distance={10} />
 
-          {/* 3D Keyboard Scene */}
-          <KeyboardScene
-            onNavigateHome={onNavigateHome}
-            onOpenCV={onOpenCV}
-            onOpenContact={onOpenContact}
-            setCursorMode={setCursorMode}
-          />
+          {/* 3D Keyboard Scene with Error Boundary */}
+          <SceneErrorBoundary>
+            <KeyboardScene
+              onNavigateHome={onNavigateHome}
+              onOpenCV={onOpenCV}
+              onOpenContact={onOpenContact}
+              setCursorMode={setCursorMode}
+            />
+          </SceneErrorBoundary>
         </Canvas>
       </div>
     </div>

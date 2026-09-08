@@ -28,6 +28,61 @@ interface ProjectModalProps {
   setCursorMode: (mode: CursorMode, text?: string) => void;
 }
 
+const GalleryVideoThumb: React.FC<{ url: string }> = ({ url }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = true;
+    if (isHovered) {
+      const p = v.play();
+      if (p !== undefined) p.catch(() => {});
+    } else {
+      v.pause();
+    }
+  }, [isHovered]);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    return () => {
+      if (v) {
+        v.pause();
+        try {
+          v.removeAttribute('src');
+          v.load();
+        } catch {}
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="w-full h-full relative"
+    >
+      <video
+        ref={videoRef}
+        src={url}
+        loop
+        muted
+        playsInline
+        preload="metadata"
+        className="w-full h-full object-cover scale-[1.01] group-hover:scale-105 transition-transform duration-500"
+      />
+      {!isHovered && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-10 h-10 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-[#39FF14] shadow-lg backdrop-blur-sm">
+            <Play className="h-4 w-4 ml-0.5 fill-current" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ProjectModal: React.FC<ProjectModalProps> = ({
   project: rawProject,
   onClose,
@@ -134,9 +189,17 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     return () => {
       if (videoRef.current) {
         videoRef.current.pause();
+        try {
+          videoRef.current.removeAttribute('src');
+          videoRef.current.load();
+        } catch {}
       }
       if (enlargedVideoRef.current) {
         enlargedVideoRef.current.pause();
+        try {
+          enlargedVideoRef.current.removeAttribute('src');
+          enlargedVideoRef.current.load();
+        } catch {}
       }
     };
   }, []);
@@ -278,10 +341,17 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   <video
                     ref={videoRef}
                     src={project.videoUrl}
+                    poster={project.heroImage}
                     autoPlay={!isHeroVideoEnlarged && activeImageIndex === null}
                     loop
                     muted={isIkea || isHeroVideoEnlarged || activeImageIndex !== null ? true : isMuted}
                     playsInline
+                    preload="metadata"
+                    onError={() => {
+                      if (videoRef.current) {
+                        videoRef.current.load();
+                      }
+                    }}
                     className="w-full h-full object-cover"
                   />
 

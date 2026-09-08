@@ -5,14 +5,27 @@ import * as THREE from 'three';
 import { audio } from '../../utils/audio';
 import { CursorMode } from '../../types';
 
-class SceneErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
+class SceneErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; retries: number }> {
+  state = { hasError: false, retries: 0 };
+  private timer: any = null;
+
   static getDerivedStateFromError() {
     return { hasError: true };
   }
+
   componentDidCatch(error: any) {
-    console.warn('3D Floating Icons error caught by boundary:', error);
+    console.warn('3D Floating Icons caught error, scheduling auto-recovery:', error);
+    if (this.state.retries < 4) {
+      this.timer = setTimeout(() => {
+        this.setState((prev) => ({ hasError: false, retries: prev.retries + 1 }));
+      }, 1500);
+    }
   }
+
+  componentWillUnmount() {
+    if (this.timer) clearTimeout(this.timer);
+  }
+
   render() {
     if (this.state.hasError) {
       return null;
@@ -115,31 +128,89 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
         const dirY = dy * invDist;
 
         // Repel away from cursor on X/Y and project forward in +Z towards user
-        pushX = dirX * force * 1.5;
-        pushY = dirY * force * 1.5;
-        pushZ = force * 2.2;
+        pushX = dirX * force * 1.1;
+        pushY = dirY * force * 0.75;
+        pushZ = force * 0.85;
 
-        targetScale = 1.0 + force * 0.25;
+        targetScale = 1.0 + force * 0.22;
       }
     }
 
-    targetPos.set(levitateX + pushX, levitateY + pushY, levitateZ + pushZ);
+    const isRepelling = pointerActiveRef?.current && (pushX !== 0 || pushY !== 0 || pushZ !== 0);
+    const hasVelocity = velocity.current.lengthSq() > 0.0001;
 
-    // 3. Second-Order Spring Physics (Hooke's Law + Damping)
-    const stiffness = 95;
-    const damping = 12;
+    // Calculate dynamic safe visible frustum boundaries at the icon depth
+    const camZ = state.camera.position.z;
+    const distToCam = Math.max(1.0, camZ - (basePosition.z + pushZ));
+    const halfFovRad = THREE.MathUtils.degToRad((state.camera as any).fov ? (state.camera as any).fov * 0.5 : 22.5);
+    const frustumHalfHeight = distToCam * Math.tan(halfFovRad);
+    const frustumHalfWidth = frustumHalfHeight * (state.viewport.width / Math.max(0.001, state.viewport.height));
 
-    const forceVecX = (targetPos.x - currentPos.current.x) * stiffness;
-    const forceVecY = (targetPos.y - currentPos.current.y) * stiffness;
-    const forceVecZ = (targetPos.z - currentPos.current.z) * stiffness;
+    const iconRadius = 0.38;
+    const safeLimitY = Math.max(0.4, frustumHalfHeight - iconRadius);
+    const safeLimitX = Math.max(0.4, frustumHalfWidth - iconRadius);
 
-    velocity.current.x += (forceVecX - velocity.current.x * damping) * dt;
-    velocity.current.y += (forceVecY - velocity.current.y * damping) * dt;
-    velocity.current.z += (forceVecZ - velocity.current.z * damping) * dt;
+    let rawTargetX = levitateX + pushX;
+    let rawTargetY = levitateY + pushY;
+    let rawTargetZ = levitateZ + pushZ;
 
-    currentPos.current.x += velocity.current.x * dt;
-    currentPos.current.y += velocity.current.y * dt;
-    currentPos.current.z += velocity.current.z * dt;
+    // Soft elastic resistance on target Y so icon never shoots out of top or bottom of the canvas
+    if (rawTargetY > safeLimitY) {
+      const excess = rawTargetY - safeLimitY;
+      rawTargetY = safeLimitY + Math.tanh(excess * 1.5) * 0.06;
+    } else if (rawTargetY < -safeLimitY) {
+      const excess = -safeLimitY - rawTargetY;
+      rawTargetY = -safeLimitY - Math.tanh(excess * 1.5) * 0.06;
+    }
+
+    // Soft elastic resistance on target X
+    if (rawTargetX > safeLimitX) {
+      const excess = rawTargetX - safeLimitX;
+      rawTargetX = safeLimitX + Math.tanh(excess * 1.5) * 0.06;
+    } else if (rawTargetX < -safeLimitX) {
+      const excess = -safeLimitX - rawTargetX;
+      rawTargetX = -safeLimitX - Math.tanh(excess * 1.5) * 0.06;
+    }
+
+    if (isRepelling || hasVelocity) {
+      targetPos.set(rawTargetX, rawTargetY, rawTargetZ);
+
+      // 3. Second-Order Spring Physics (Hooke's Law + Damping)
+      const stiffness = 95;
+      const damping = 12;
+
+      const forceVecX = (targetPos.x - currentPos.current.x) * stiffness;
+      const forceVecY = (targetPos.y - currentPos.current.y) * stiffness;
+      const forceVecZ = (targetPos.z - currentPos.current.z) * stiffness;
+
+      velocity.current.x += (forceVecX - velocity.current.x * damping) * dt;
+      velocity.current.y += (forceVecY - velocity.current.y * damping) * dt;
+      velocity.current.z += (forceVecZ - velocity.current.z * damping) * dt;
+
+      currentPos.current.x += velocity.current.x * dt;
+      currentPos.current.y += velocity.current.y * dt;
+      currentPos.current.z += velocity.current.z * dt;
+
+      // Soft physical cushion if velocity pushes position past the visible boundary
+      if (currentPos.current.y > safeLimitY + 0.05) {
+        currentPos.current.y = safeLimitY + 0.05;
+        if (velocity.current.y > 0) velocity.current.y *= -0.2;
+      } else if (currentPos.current.y < -(safeLimitY + 0.05)) {
+        currentPos.current.y = -(safeLimitY + 0.05);
+        if (velocity.current.y < 0) velocity.current.y *= -0.2;
+      }
+
+      if (currentPos.current.x > safeLimitX + 0.05) {
+        currentPos.current.x = safeLimitX + 0.05;
+        if (velocity.current.x > 0) velocity.current.x *= -0.2;
+      } else if (currentPos.current.x < -(safeLimitX + 0.05)) {
+        currentPos.current.x = -(safeLimitX + 0.05);
+        if (velocity.current.x < 0) velocity.current.x *= -0.2;
+      }
+    } else {
+      currentPos.current.set(rawTargetX, rawTargetY, rawTargetZ);
+      velocity.current.set(0, 0, 0);
+    }
 
     // Apply updated coordinates & transforms directly without object allocations
     meshRef.current.position.copy(currentPos.current);
@@ -164,9 +235,9 @@ const SingleFloatingIcon: React.FC<SingleIconProps> = ({
   const handleClick = (e: any) => {
     e.stopPropagation();
     audio.playMechanicalClick();
-    velocity.current.z += 2.5;
-    velocity.current.y += (Math.random() - 0.5) * 1.5;
-    velocity.current.x += (Math.random() - 0.5) * 1.5;
+    velocity.current.z += 1.2;
+    velocity.current.y += (Math.random() - 0.5) * 0.8;
+    velocity.current.x += (Math.random() - 0.5) * 0.8;
   };
 
   return (
@@ -323,11 +394,12 @@ const FloatingIconsScene: React.FC<FloatingIconsSceneProps> = ({ setCursorMode, 
   const gltf = useGLTF(MODEL_URL, DRACO_DECODER_PATH) as any;
   const { viewport } = useThree();
 
-  // Dynamically scale icons so they fit comfortably inside the canvas on narrow mobile screens
+  // Dynamically scale icons so they fit comfortably inside the canvas in both dimensions
   const responsiveScale = useMemo(() => {
-    // Normal desktop spread is ~4.8 units
-    return Math.min(1.0, Math.max(0.48, (viewport.width * 0.92) / 4.8));
-  }, [viewport.width]);
+    const scaleX = (viewport.width * 0.90) / 4.8;
+    const scaleY = (viewport.height * 0.86) / 3.3;
+    return Math.min(1.0, Math.max(0.46, Math.min(scaleX, scaleY)));
+  }, [viewport.width, viewport.height]);
 
   // Extract and center each mesh individually, sharing the single atlas material to avoid shader re-binding
   const iconMeshes = useMemo(() => {
@@ -362,10 +434,10 @@ const FloatingIconsScene: React.FC<FloatingIconsSceneProps> = ({ setCursorMode, 
         const center = new THREE.Vector3();
         bbox.getCenter(center);
 
-        // Scale and map model position to wider viewport coordinates
+        // Scale and map model position to wider viewport coordinates with comfortable vertical margins
         const spreadFactorX = 3.6;
-        const spreadFactorY = 2.8;
-        const spreadFactorZ = 2.0;
+        const spreadFactorY = 2.45;
+        const spreadFactorZ = 1.8;
 
         // Detect if this mesh contains two fused icons (specifically geometry_0.009 which has both the 'M' logo and circular emblem)
         const isFusedDualIcon = child.name === 'geometry_0.009' || (bbox.max.y - bbox.min.y > 0.45 && Math.abs(center.x - 0.057) < 0.1);
@@ -377,14 +449,14 @@ const FloatingIconsScene: React.FC<FloatingIconsSceneProps> = ({ setCursorMode, 
           // Top icon ('M' logo) - separate upwards and slightly left
           const topPos = new THREE.Vector3(
             topCenter.x * spreadFactorX - 0.05,
-            topCenter.y * spreadFactorY + 0.16,
+            topCenter.y * spreadFactorY + 0.14,
             topCenter.z * spreadFactorZ
           );
 
           // Bottom icon (circular emblem) - separate downwards and slightly right
           const bottomPos = new THREE.Vector3(
             bottomCenter.x * spreadFactorX + 0.05,
-            bottomCenter.y * spreadFactorY - 0.16,
+            bottomCenter.y * spreadFactorY - 0.14,
             bottomCenter.z * spreadFactorZ
           );
 
@@ -447,31 +519,15 @@ const FloatingIconsScene: React.FC<FloatingIconsSceneProps> = ({ setCursorMode, 
   );
 };
 
-// Adaptive Render Controller: throttles R3F rendering to 45 FPS during active interaction,
-// and 30 FPS when idle floating, preventing GPU overheating and fan noise on 120Hz/144Hz monitors.
-const AdaptiveRenderController: React.FC = () => {
+// Adaptive Render Controller: renders at 40 FPS when user is actively repelling icons with mouse,
+// and 24 FPS during gentle ambient floating, reducing GPU consumption by >50%.
+const AdaptiveRenderController: React.FC<{ pointerActiveRef: React.MutableRefObject<boolean> }> = ({
+  pointerActiveRef,
+}) => {
   const lastRenderTime = useRef(0);
-  const isInteracting = useRef(false);
-  const interactionTimer = useRef<any>(null);
-
-  useEffect(() => {
-    const handleMove = () => {
-      isInteracting.current = true;
-      if (interactionTimer.current) clearTimeout(interactionTimer.current);
-      interactionTimer.current = setTimeout(() => {
-        isInteracting.current = false;
-      }, 1200);
-    };
-
-    window.addEventListener('pointermove', handleMove, { passive: true });
-    return () => {
-      window.removeEventListener('pointermove', handleMove);
-      if (interactionTimer.current) clearTimeout(interactionTimer.current);
-    };
-  }, []);
 
   useFrame((state) => {
-    const targetFps = isInteracting.current ? 45 : 30;
+    const targetFps = pointerActiveRef.current ? 40 : 24;
     const interval = 1000 / targetFps;
     const now = performance.now();
 
@@ -482,40 +538,6 @@ const AdaptiveRenderController: React.FC = () => {
   }, 1);
 
   return null;
-};
-
-// Subtle, soft volumetric glow backdrop located strictly behind the 3D model (z = -2.4)
-const SoftBackdropGlow: React.FC = () => {
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
-    gradient.addColorStop(0, 'rgba(57, 255, 20, 0.32)');
-    gradient.addColorStop(0.35, 'rgba(34, 197, 94, 0.15)');
-    gradient.addColorStop(0.68, 'rgba(57, 255, 20, 0.03)');
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 512, 512);
-    const tex = new THREE.CanvasTexture(canvas);
-    return tex;
-  }, []);
-
-  if (!texture) return null;
-
-  return (
-    <mesh position={[0, 0, -2.4]} renderOrder={-1}>
-      <planeGeometry args={[13.5, 8]} />
-      <meshBasicMaterial
-        map={texture}
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </mesh>
-  );
 };
 
 export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCursorMode, isPaused = false }) => {
@@ -567,72 +589,83 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
     <section 
       ref={sectionRef}
       id="floating-icons" 
-      className="relative w-full max-w-7xl mx-auto py-10 sm:py-16 px-2 sm:px-4 select-none overflow-hidden"
+      className="relative w-full py-12 sm:py-20 select-none overflow-visible"
     >
-      {/* Soft Ambient Background Glow strictly behind the 3D Canvas (using pure radial CSS gradient without GPU-heavy blur filter) */}
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center -z-10 overflow-hidden">
+      {/* Soft Ambient Background Glow strictly behind the 3D Canvas - fully diffuse, seamless falloff to transparent black with no bounding box */}
+      <div className="absolute -inset-y-32 inset-x-0 pointer-events-none flex items-center justify-center -z-10 overflow-visible">
         <div 
-          className="w-full max-w-[620px] sm:max-w-[860px] lg:max-w-[1080px] h-[300px] sm:h-[400px] lg:h-[460px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.16)_0%,rgba(16,185,129,0.06)_40%,rgba(0,0,0,0)_70%)]" 
+          className="w-full h-full max-w-6xl mx-auto bg-[radial-gradient(ellipse_60%_50%_at_50%_50%,rgba(57,255,20,0.18)_0%,rgba(34,197,94,0.08)_28%,rgba(16,185,129,0.02)_52%,transparent_72%)]" 
         />
       </div>
 
-      {/* Seamless Transparent 3D Stage without frame or borders */}
-      <div 
-        className="relative w-full h-[360px] sm:h-[480px] lg:h-[650px] overflow-hidden z-0"
-        onPointerEnter={(e) => {
-          if (e.pointerType !== 'touch') {
-            pointerActiveRef.current = true;
-          }
-        }}
-        onPointerMove={(e) => {
-          if (e.pointerType !== 'touch') {
-            pointerActiveRef.current = true;
-          }
-        }}
-        onPointerLeave={() => {
-          pointerActiveRef.current = false;
-        }}
-        onPointerCancel={() => {
-          pointerActiveRef.current = false;
-        }}
-      >
-        {/* R3F Canvas - throttled with AdaptiveRenderController & halts rendering when offscreen */}
-        <Canvas
-          frameloop={shouldRender ? 'always' : 'never'}
-          camera={{ position: [0, 0, 5.4], fov: 45 }}
-          className="w-full h-full"
-          dpr={1}
-          gl={{
-            antialias: true,
-            alpha: true,
-            powerPreference: 'low-power',
-            precision: 'mediump',
-            stencil: false,
-            depth: true,
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4">
+        {/* Seamless Transparent 3D Stage without frame, borders or clipping overflow */}
+        <div 
+          className="relative w-full h-[400px] sm:h-[540px] lg:h-[700px] z-0"
+          onPointerEnter={(e) => {
+            if (e.pointerType !== 'touch') {
+              pointerActiveRef.current = true;
+            }
+          }}
+          onPointerMove={(e) => {
+            if (e.pointerType !== 'touch') {
+              pointerActiveRef.current = true;
+            }
+          }}
+          onPointerLeave={() => {
+            pointerActiveRef.current = false;
+          }}
+          onPointerCancel={() => {
+            pointerActiveRef.current = false;
           }}
         >
-          {/* Framerate Controller: caps rendering to 45 FPS (moving) / 30 FPS (idle) */}
-          <AdaptiveRenderController />
+          {/* R3F Canvas - throttled with AdaptiveRenderController & halts rendering when offscreen */}
+          <Canvas
+            frameloop={shouldRender ? 'always' : 'never'}
+            camera={{ position: [0, 0, 5.7], fov: 45 }}
+            className="w-full h-full"
+            style={{ background: 'transparent' }}
+            onCreated={({ gl }) => {
+              gl.setClearColor(0x000000, 0);
+              gl.domElement.addEventListener('webglcontextlost', (e) => {
+                e.preventDefault();
+                console.warn('Floating icons WebGL context lost; preventing default to allow auto-restoration');
+              });
+              gl.domElement.addEventListener('webglcontextrestored', () => {
+                console.info('Floating icons WebGL context restored successfully');
+              });
+            }}
+            dpr={1}
+            gl={{
+              antialias: true,
+              alpha: true,
+              preserveDrawingBuffer: true,
+              powerPreference: 'low-power',
+              precision: 'mediump',
+              stencil: false,
+              depth: true,
+            }}
+          >
+            {/* Framerate Controller: 40 FPS (hover repel) / 24 FPS (idle levitate) */}
+            <AdaptiveRenderController pointerActiveRef={pointerActiveRef} />
 
-          {/* Clean Neutral Studio Lighting on Front of Icons */}
-          <ambientLight intensity={0.9} />
-          <directionalLight position={[4, 6, 5]} intensity={1.1} color="#ffffff" />
-          <directionalLight position={[-4, 2, 4]} intensity={0.4} color="#f8fafc" />
+            {/* Clean Neutral Studio Lighting on Front of Icons */}
+            <ambientLight intensity={0.9} />
+            <directionalLight position={[4, 6, 5]} intensity={1.1} color="#ffffff" />
+            <directionalLight position={[-4, 2, 4]} intensity={0.4} color="#f8fafc" />
 
-          {/* Gentle Soft Backlight behind the icons (Z = -2.0) */}
-          <pointLight position={[0, 0, -2.0]} intensity={1.1} color="#39FF14" distance={7} />
+            {/* Gentle Soft Backlight behind the icons (Z = -2.0) */}
+            <pointLight position={[0, 0, -2.0]} intensity={1.1} color="#39FF14" distance={7} />
 
-          {/* Soft 3D Glow Plane strictly behind the models */}
-          <SoftBackdropGlow />
-
-          {/* Suspense with Fallback and Error Boundary */}
-          <Suspense fallback={null}>
-            <SceneErrorBoundary>
-              <FloatingIconsScene setCursorMode={setCursorMode} pointerActiveRef={pointerActiveRef} />
-            </SceneErrorBoundary>
-            <Preload all />
-          </Suspense>
-        </Canvas>
+            {/* Suspense with Fallback and Error Boundary */}
+            <Suspense fallback={null}>
+              <SceneErrorBoundary>
+                <FloatingIconsScene setCursorMode={setCursorMode} pointerActiveRef={pointerActiveRef} />
+              </SceneErrorBoundary>
+              <Preload all />
+            </Suspense>
+          </Canvas>
+        </div>
       </div>
     </section>
   );

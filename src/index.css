@@ -164,3 +164,19 @@
   box-shadow: 0 2px 0 #1a7a0a;
 }
 
+/* GPU Compositor-Accelerated Float Animation (No JS RAF loop) */
+@keyframes subtle-float {
+  0%, 100% {
+    transform: translateY(-6px) rotate(-0.5deg);
+  }
+  50% {
+    transform: translateY(6px) rotate(0.5deg);
+  }
+}
+
+.animate-subtle-float {
+  animation: subtle-float 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+

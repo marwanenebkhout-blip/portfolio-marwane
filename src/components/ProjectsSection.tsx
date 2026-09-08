@@ -13,6 +13,8 @@ interface ControlledVideoProps {
   className?: string;
   isIkea?: boolean;
   isPaused?: boolean;
+  poster?: string;
+  fallbackImage?: string;
 }
 
 const ControlledVideo: React.FC<ControlledVideoProps> = ({
@@ -22,8 +24,15 @@ const ControlledVideo: React.FC<ControlledVideoProps> = ({
   className,
   isIkea,
   isPaused = false,
+  poster,
+  fallbackImage,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -51,17 +60,41 @@ const ControlledVideo: React.FC<ControlledVideoProps> = ({
 
     return () => {
       document.removeEventListener('visibilitychange', updatePlayback);
+      // Cleanly release hardware video decoder resources from GPU memory
+      if (v) {
+        v.pause();
+        try {
+          v.removeAttribute('src');
+          v.load();
+        } catch {}
+      }
     };
   }, [isActive, isSectionInView, isIkea, isPaused]);
+
+  if (hasError && fallbackImage) {
+    return (
+      <img
+        src={fallbackImage}
+        alt="Fallback visual"
+        referrerPolicy="no-referrer"
+        loading="lazy"
+        className={className}
+      />
+    );
+  }
 
   return (
     <video
       ref={videoRef}
       src={src}
+      poster={poster || fallbackImage}
       loop
       muted
       playsInline
-      preload={isActive ? 'auto' : 'none'}
+      preload="metadata"
+      onError={() => {
+        setHasError(true);
+      }}
       className={className}
     />
   );
@@ -210,8 +243,8 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
               ? 30
               : 40 + idx;
 
-            // Mount active card and immediate neighbors for instantaneous zero-latency switching without overloading GPU memory
-            const shouldMountMedia = isActive || Math.abs(idx - activeIdx) <= 1;
+            // Mount media strictly for the active card to prevent excessive memory and decoder consumption
+            const shouldMountMedia = isActive;
 
             return (
               <div
@@ -309,6 +342,8 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                 {project.videoUrl ? (
                                   <ControlledVideo
                                     src={project.videoUrl}
+                                    poster={project.heroImage}
+                                    fallbackImage={project.heroImage}
                                     isActive={isActive}
                                     isSectionInView={isSectionInView}
                                     isIkea={isIkea}
@@ -347,6 +382,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                   {secondaryTop && (secondaryTop.endsWith('.mp4') || secondaryTop.endsWith('.mov') || secondaryTop.endsWith('.webm')) ? (
                                     <ControlledVideo
                                       src={secondaryTop}
+                                      fallbackImage={project.heroImage}
                                       isActive={isActive}
                                       isSectionInView={isSectionInView}
                                       isIkea={isIkea}
@@ -379,6 +415,7 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                   {secondaryBottom && (secondaryBottom.endsWith('.mp4') || secondaryBottom.endsWith('.mov') || secondaryBottom.endsWith('.webm')) ? (
                                     <ControlledVideo
                                       src={secondaryBottom}
+                                      fallbackImage={project.heroImage}
                                       isActive={isActive}
                                       isSectionInView={isSectionInView}
                                       isIkea={isIkea}

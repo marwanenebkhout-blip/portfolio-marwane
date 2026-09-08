@@ -48,6 +48,9 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ is
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
+      if (video) {
+        video.pause();
+      }
     };
   }, [isInView, isPaused]);
 
@@ -74,8 +77,13 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ is
             autoPlay
             muted
             playsInline
-            preload="auto"
+            preload="metadata"
             loop
+            onError={() => {
+              if (videoRef.current) {
+                videoRef.current.load();
+              }
+            }}
             className="w-full h-full object-contain block select-none bg-black pointer-events-none"
           />
         </motion.div>

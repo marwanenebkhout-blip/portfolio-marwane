@@ -12,26 +12,31 @@ interface HeroCore3DProps {
 export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode, isPaused = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const isIntersectingRef = useRef(false);
+  const isIntersectingRef = useRef(true);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    const el = containerRef.current;
+    if (!video || !el) return;
 
     video.defaultMuted = true;
     video.muted = true;
+
+    // Check actual viewport visibility immediately on mount
+    const rect = el.getBoundingClientRect();
+    isIntersectingRef.current = rect.top < window.innerHeight && rect.bottom > 0;
 
     const updatePlayback = () => {
       if (!video) return;
       if (document.hidden || isPaused || !isIntersectingRef.current) {
         video.pause();
       } else {
-        video.play().catch(() => {});
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {});
+        }
       }
     };
-
-    const el = containerRef.current;
-    if (!el) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -47,12 +52,15 @@ export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode, isPaused 
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Initial check
+    // Initial playback check
     updatePlayback();
 
     return () => {
       observer.disconnect();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (video) {
+        video.pause();
+      }
     };
   }, [isPaused]);
 
@@ -71,7 +79,13 @@ export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode, isPaused 
         loop
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
+        onError={() => {
+          // Attempt single auto-recovery if decoder dropped
+          if (videoRef.current) {
+            videoRef.current.load();
+          }
+        }}
         className="w-full h-full object-cover object-center pointer-events-none scale-100 sm:scale-105 lg:scale-108 transition-transform duration-500"
       />
     </div>

@@ -21,15 +21,11 @@ const ProjectModal = lazy(() => import('./components/ProjectModal').then((m) => 
 export default function App() {
   const { lang, t } = useLanguage();
   const [activeSection, setActiveSection] = useState('hero');
-  const [cursorMode, setCursorModeState] = useState<CursorMode>('DEFAULT');
-  const [cursorText, setCursorText] = useState<string | undefined>(undefined);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isCVModalOpen, setIsCVModalOpen] = useState(false);
 
-  const setCursorMode = useCallback((mode: CursorMode, text?: string) => {
-    setCursorModeState(mode);
-    setCursorText(text);
-  }, []);
+  // Memoized no-op callback so child hover events don't trigger root App re-renders
+  const setCursorMode = useCallback((_mode: CursorMode, _text?: string) => {}, []);
 
   const scrollToSection = (sectionId: string) => {
     setActiveSection(sectionId);
