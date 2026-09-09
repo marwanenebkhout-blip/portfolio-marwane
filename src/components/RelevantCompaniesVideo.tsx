@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { Briefcase } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import boxVideo from '../assets/images/BOX ICONES.mp4';
@@ -8,27 +8,23 @@ export const RelevantCompaniesVideo: React.FC = () => {
   const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hasPlayedRef = useRef(false);
+  const isIntersectingRef = useRef(false);
 
-  // Play the video forward once
-  const playOnce = useCallback(() => {
+  // Play video smoothly when in view
+  const resumePlayback = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    video.currentTime = 0;
+    if (video.readyState === 0) {
+      video.load();
+    }
     const playPromise = video.play();
     if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          hasPlayedRef.current = true;
-        })
-        .catch((err) => {
-          console.warn('Video autoplay prevented:', err);
-        });
+      playPromise.catch(() => {});
     }
   }, []);
 
-  // Intersection Observer: detect when user scrolls close to or into this section
+  // Intersection Observer: play when in view, pause when scrolled away
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -37,37 +33,44 @@ export const RelevantCompaniesVideo: React.FC = () => {
       (entries) => {
         entries.forEach((entry) => {
           const video = videoRef.current;
+          isIntersectingRef.current = entry.isIntersecting;
           if (entry.isIntersecting) {
-            // When arriving at or near this section: play once if not already played
-            if (!hasPlayedRef.current) {
-              playOnce();
-            }
+            resumePlayback();
           } else if (entry.intersectionRatio <= 0.0) {
-            // When completely scrolled out of view: reset so it replays next time
-            hasPlayedRef.current = false;
-            if (video) {
+            if (video && !video.paused) {
               video.pause();
-              video.currentTime = 0;
             }
           }
         });
       },
       {
-        rootMargin: '150px 0px',
+        rootMargin: '200px 0px',
         threshold: [0.0, 0.1, 0.5],
       }
     );
 
     observer.observe(container);
 
+    // Wake-up listener when user returns from other tabs or hours of browsing
+    const handleWakeup = () => {
+      if (isIntersectingRef.current && !document.hidden) {
+        resumePlayback();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleWakeup);
+    window.addEventListener('focus', handleWakeup);
+
     return () => {
       observer.disconnect();
+      document.removeEventListener('visibilitychange', handleWakeup);
+      window.removeEventListener('focus', handleWakeup);
       const video = videoRef.current;
       if (video) {
         video.pause();
       }
     };
-  }, [playOnce]);
+  }, [resumePlayback]);
 
   return (
     <div ref={containerRef} className="space-y-3 pt-6 sm:pt-10 select-none">
@@ -86,10 +89,18 @@ export const RelevantCompaniesVideo: React.FC = () => {
             poster={boxPoster}
             playsInline
             muted
-            preload="metadata"
+            loop
+            autoPlay
+            preload="auto"
             onError={() => {
-              if (videoRef.current) {
-                videoRef.current.load();
+              const v = videoRef.current;
+              if (v) {
+                setTimeout(() => {
+                  v.load();
+                  if (isIntersectingRef.current && !document.hidden) {
+                    v.play().catch(() => {});
+                  }
+                }, 400);
               }
             }}
             className="w-full h-full object-cover rounded-xl pointer-events-none drop-shadow-[0_15px_30px_rgba(0,0,0,0.85)]"
@@ -99,4 +110,3 @@ export const RelevantCompaniesVideo: React.FC = () => {
     </div>
   );
 };
-

@@ -519,27 +519,6 @@ const FloatingIconsScene: React.FC<FloatingIconsSceneProps> = ({ setCursorMode, 
   );
 };
 
-// Adaptive Render Controller: renders at 40 FPS when user is actively repelling icons with mouse,
-// and 24 FPS during gentle ambient floating, reducing GPU consumption by >50%.
-const AdaptiveRenderController: React.FC<{ pointerActiveRef: React.MutableRefObject<boolean> }> = ({
-  pointerActiveRef,
-}) => {
-  const lastRenderTime = useRef(0);
-
-  useFrame((state) => {
-    const targetFps = pointerActiveRef.current ? 40 : 24;
-    const interval = 1000 / targetFps;
-    const now = performance.now();
-
-    if (now - lastRenderTime.current >= interval) {
-      lastRenderTime.current = now - ((now - lastRenderTime.current) % interval);
-      state.gl.render(state.scene, state.camera);
-    }
-  }, 1);
-
-  return null;
-};
-
 export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCursorMode, isPaused = false }) => {
   const sectionRef = useRef<HTMLElement>(null);
   const [isInView, setIsInView] = useState(false);
@@ -548,7 +527,14 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      setIsTabVisible(!document.hidden);
+      const visible = !document.hidden;
+      setIsTabVisible(visible);
+      if (visible) {
+        pointerActiveRef.current = false;
+      }
+    };
+    const handleFocus = () => {
+      setIsTabVisible(true);
     };
     const handleScroll = () => {
       // Deactivate repulsion during scrolling so icons remain undisturbed and in place
@@ -556,9 +542,11 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
@@ -619,7 +607,6 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
             pointerActiveRef.current = false;
           }}
         >
-          {/* R3F Canvas - throttled with AdaptiveRenderController & halts rendering when offscreen */}
           <Canvas
             frameloop={shouldRender ? 'always' : 'never'}
             camera={{ position: [0, 0, 5.7], fov: 45 }}
@@ -627,28 +614,14 @@ export const FloatingIconsField: React.FC<FloatingIconsFieldProps> = ({ setCurso
             style={{ background: 'transparent' }}
             onCreated={({ gl }) => {
               gl.setClearColor(0x000000, 0);
-              gl.domElement.addEventListener('webglcontextlost', (e) => {
-                e.preventDefault();
-                console.warn('Floating icons WebGL context lost; preventing default to allow auto-restoration');
-              });
-              gl.domElement.addEventListener('webglcontextrestored', () => {
-                console.info('Floating icons WebGL context restored successfully');
-              });
             }}
             dpr={1}
             gl={{
               antialias: true,
               alpha: true,
-              preserveDrawingBuffer: true,
-              powerPreference: 'low-power',
-              precision: 'mediump',
-              stencil: false,
-              depth: true,
+              powerPreference: 'high-performance',
             }}
           >
-            {/* Framerate Controller: 40 FPS (hover repel) / 24 FPS (idle levitate) */}
-            <AdaptiveRenderController pointerActiveRef={pointerActiveRef} />
-
             {/* Clean Neutral Studio Lighting on Front of Icons */}
             <ambientLight intensity={0.9} />
             <directionalLight position={[4, 6, 5]} intensity={1.1} color="#ffffff" />

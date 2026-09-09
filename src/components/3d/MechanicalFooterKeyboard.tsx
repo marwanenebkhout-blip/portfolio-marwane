@@ -715,30 +715,6 @@ const KeyboardScene = ({
   );
 };
 
-// Zero-Power Adaptive Render Controller: renders at 45 FPS during active interaction,
-// and drops to 0 FPS (0% GPU/CPU load) as soon as the chassis and keys settle to rest.
-const AdaptiveKeyboardRenderController: React.FC = () => {
-  const lastRenderTime = useRef(0);
-
-  useFrame((state) => {
-    const now = performance.now();
-    // When idle and settled: 0 FPS (0% GPU and 0% CPU consumption)
-    if (now > keyboardActivity.renderUntil) {
-      return;
-    }
-
-    const targetFps = 45;
-    const interval = 1000 / targetFps;
-
-    if (now - lastRenderTime.current >= interval) {
-      lastRenderTime.current = now - ((now - lastRenderTime.current) % interval);
-      state.gl.render(state.scene, state.camera);
-    }
-  }, 1);
-
-  return null;
-};
-
 export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> = ({
   onNavigateHome,
   onOpenCV,
@@ -755,12 +731,31 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
       const visible = !document.hidden;
       setIsTabVisible(visible);
       if (visible && isInView) {
-        keyboardActivity.markActive(1500);
+        keyboardActivity.markActive(2500);
       }
     };
+
+    const handleFocus = () => {
+      setIsTabVisible(true);
+      if (isInView) {
+        keyboardActivity.markActive(2500);
+      }
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [isInView]);
+
+  // When modal closes or pause status releases, awaken rendering
+  useEffect(() => {
+    if (!isPaused && isInView && isTabVisible) {
+      keyboardActivity.markActive(3000);
+    }
+  }, [isPaused, isInView, isTabVisible]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -768,19 +763,19 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
 
     // Check if already in or near view on initial load
     const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight + 50 && rect.bottom > -50) {
+    if (rect.top < window.innerHeight + 100 && rect.bottom > -100) {
       setIsInView(true);
-      keyboardActivity.markActive(2000);
+      keyboardActivity.markActive(2500);
     }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsInView(entry.isIntersecting);
         if (entry.isIntersecting) {
-          keyboardActivity.markActive(2000);
+          keyboardActivity.markActive(2500);
         }
       },
-      { rootMargin: '50px' }
+      { rootMargin: '100px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -822,27 +817,14 @@ export const MechanicalFooterKeyboard: React.FC<MechanicalFooterKeyboardProps> =
           camera={{ position: [0, 8.5, 6.2], fov: 42 }}
           dpr={1}
           onCreated={({ gl }) => {
-            gl.domElement.addEventListener('webglcontextlost', (e) => {
-              e.preventDefault();
-              console.warn('Mechanical keyboard WebGL context lost; preventing default to allow auto-restoration');
-            });
-            gl.domElement.addEventListener('webglcontextrestored', () => {
-              console.info('Mechanical keyboard WebGL context restored successfully');
-            });
+            gl.setClearColor(0x000000, 0);
           }}
           gl={{
             antialias: true,
             alpha: true,
-            preserveDrawingBuffer: true,
-            powerPreference: 'low-power',
-            precision: 'mediump',
-            stencil: false,
-            depth: true,
+            powerPreference: 'high-performance',
           }}
         >
-          {/* Adaptive Framerate Limiter to prevent GPU thermal throttling */}
-          <AdaptiveKeyboardRenderController />
-
           {/* Studio Lighting Rig */}
           <ambientLight intensity={0.9} />
 

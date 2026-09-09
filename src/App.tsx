@@ -24,6 +24,32 @@ export default function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isCVModalOpen, setIsCVModalOpen] = useState(false);
 
+  // Synchronize modal state with browser history so 'back' navigation cleanly returns to portfolio
+  useEffect(() => {
+    if (!selectedProject) return;
+
+    if (window.location.hash !== `#project-${selectedProject.id}`) {
+      window.history.pushState({ modal: 'project', id: selectedProject.id }, '', `#project-${selectedProject.id}`);
+    }
+
+    const handlePopState = () => {
+      setSelectedProject(null);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [selectedProject?.id]);
+
+  const handleCloseProject = useCallback(() => {
+    if (window.location.hash.startsWith('#project-')) {
+      window.history.back();
+    } else {
+      setSelectedProject(null);
+    }
+  }, []);
+
   // Memoized no-op callback so child hover events don't trigger root App re-renders
   const setCursorMode = useCallback((_mode: CursorMode, _text?: string) => {}, []);
 
@@ -183,6 +209,7 @@ export default function App() {
           onSelectProject={(project) => setSelectedProject(project)}
           setCursorMode={setCursorMode}
           isPaused={isModalOpen}
+          selectedProjectId={selectedProject?.id}
         />
 
         {/* 3D FLOATING ICONS CLUSTER // SPATIAL LEVITATION & SPRING REPULSION */}
@@ -228,7 +255,7 @@ export default function App() {
         {selectedProject && (
           <ProjectModal
             project={selectedProject}
-            onClose={() => setSelectedProject(null)}
+            onClose={handleCloseProject}
             onSelectProject={(p) => setSelectedProject(p)}
             setCursorMode={setCursorMode}
           />

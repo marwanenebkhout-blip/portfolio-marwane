@@ -31,6 +31,9 @@ export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode, isPaused 
       if (document.hidden || isPaused || !isIntersectingRef.current) {
         video.pause();
       } else {
+        if (video.readyState === 0) {
+          video.load();
+        }
         const playPromise = video.play();
         if (playPromise !== undefined) {
           playPromise.catch(() => {});
@@ -51,6 +54,7 @@ export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode, isPaused 
       updatePlayback();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
 
     // Initial playback check
     updatePlayback();
@@ -58,6 +62,7 @@ export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode, isPaused 
     return () => {
       observer.disconnect();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
       if (video) {
         video.pause();
       }
@@ -79,11 +84,17 @@ export const HeroCore3D: React.FC<HeroCore3DProps> = ({ setCursorMode, isPaused 
         loop
         muted
         playsInline
-        preload="metadata"
+        preload="auto"
         onError={() => {
-          // Attempt single auto-recovery if decoder dropped
-          if (videoRef.current) {
-            videoRef.current.load();
+          // Auto-recover decoder if dropped after long background sessions
+          const v = videoRef.current;
+          if (v) {
+            setTimeout(() => {
+              v.load();
+              if (!document.hidden && !isPaused && isIntersectingRef.current) {
+                v.play().catch(() => {});
+              }
+            }, 400);
           }
         }}
         className="w-full h-full object-cover object-center pointer-events-none scale-100 sm:scale-105 lg:scale-108 transition-transform duration-500"

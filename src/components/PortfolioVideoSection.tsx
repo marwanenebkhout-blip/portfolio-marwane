@@ -26,15 +26,20 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ is
     if (!video) return;
 
     const handleVisibility = () => {
-      if (!videoRef.current) return;
+      const v = videoRef.current;
+      if (!v) return;
       if (document.hidden || isPaused || !isInView) {
-        videoRef.current.pause();
+        v.pause();
       } else if (isInView) {
-        videoRef.current.play().catch(() => {});
+        if (v.readyState === 0) {
+          v.load();
+        }
+        v.play().catch(() => {});
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
 
     if (isInView && !isPaused && !document.hidden) {
       setHasBeenInView(true);
@@ -48,6 +53,7 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ is
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
       if (video) {
         video.pause();
       }
@@ -77,11 +83,17 @@ export const PortfolioVideoSection: React.FC<PortfolioVideoSectionProps> = ({ is
             autoPlay
             muted
             playsInline
-            preload="metadata"
+            preload="auto"
             loop
             onError={() => {
-              if (videoRef.current) {
-                videoRef.current.load();
+              const v = videoRef.current;
+              if (v) {
+                setTimeout(() => {
+                  v.load();
+                  if (isInView && !isPaused && !document.hidden) {
+                    v.play().catch(() => {});
+                  }
+                }, 400);
               }
             }}
             className="w-full h-full object-contain block select-none bg-black pointer-events-none"

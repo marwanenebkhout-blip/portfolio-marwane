@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Project, CursorMode } from '../types';
 import { projects } from '../data/projects';
@@ -21,6 +21,12 @@ const getMetricFontSize = (value: string) => {
   return 'text-2xl sm:text-3xl lg:text-4xl leading-none';
 };
 
+const isVideoMedia = (url?: string): boolean => {
+  if (!url) return false;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return clean.endsWith('.mp4') || clean.endsWith('.mov') || clean.endsWith('.webm') || clean.endsWith('.ogg');
+};
+
 interface ProjectModalProps {
   project: Project | null;
   onClose: () => void;
@@ -30,55 +36,59 @@ interface ProjectModalProps {
 
 const GalleryVideoThumb: React.FC<{ url: string }> = ({ url }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
     v.muted = true;
-    if (isHovered) {
-      const p = v.play();
-      if (p !== undefined) p.catch(() => {});
-    } else {
-      v.pause();
+    v.defaultMuted = true;
+    if (v.readyState === 0) {
+      v.load();
     }
-  }, [isHovered]);
+    const p = v.play();
+    if (p !== undefined) {
+      p.catch(() => {});
+    }
 
-  useEffect(() => {
-    const v = videoRef.current;
-    return () => {
-      if (v) {
-        v.pause();
-        try {
-          v.removeAttribute('src');
-          v.load();
-        } catch {}
+    const handleFocus = () => {
+      if (v && v.paused) {
+        v.play().catch(() => {});
       }
     };
-  }, []);
+    const handleVisibility = () => {
+      if (!document.hidden && v && v.paused) {
+        v.play().catch(() => {});
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [url]);
 
   return (
-    <div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="w-full h-full relative"
-    >
+    <div className="w-full h-full relative group">
       <video
         ref={videoRef}
         src={url}
+        autoPlay
         loop
         muted
         playsInline
-        preload="metadata"
+        preload="auto"
+        onError={() => {
+          const v = videoRef.current;
+          if (v) {
+            setTimeout(() => {
+              v.load();
+              v.play().catch(() => {});
+            }, 300);
+          }
+        }}
         className="w-full h-full object-cover scale-[1.01] group-hover:scale-105 transition-transform duration-500"
       />
-      {!isHovered && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-10 h-10 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-[#39FF14] shadow-lg backdrop-blur-sm">
-            <Play className="h-4 w-4 ml-0.5 fill-current" />
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -100,6 +110,55 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [isHeroVideoEnlarged, setIsHeroVideoEnlarged] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const enlargedVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Gallery slideshow navigation arrows: auto-hide when idle, reveal on mouse movement
+  const [areGalleryArrowsVisible, setAreGalleryArrowsVisible] = useState(true);
+  const galleryIdleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isHoveringGalleryControlsRef = useRef(false);
+
+  const showGalleryArrows = useCallback(() => {
+    setAreGalleryArrowsVisible(true);
+    if (galleryIdleTimerRef.current) {
+      clearTimeout(galleryIdleTimerRef.current);
+    }
+    galleryIdleTimerRef.current = setTimeout(() => {
+      if (!isHoveringGalleryControlsRef.current) {
+        setAreGalleryArrowsVisible(false);
+      }
+    }, 2500);
+  }, []);
+
+  const handleGalleryControlsMouseEnter = useCallback(() => {
+    isHoveringGalleryControlsRef.current = true;
+    if (galleryIdleTimerRef.current) {
+      clearTimeout(galleryIdleTimerRef.current);
+    }
+    setAreGalleryArrowsVisible(true);
+  }, []);
+
+  const handleGalleryControlsMouseLeave = useCallback(() => {
+    isHoveringGalleryControlsRef.current = false;
+    showGalleryArrows();
+  }, [showGalleryArrows]);
+
+  // When opening a slide or switching slides, ensure arrows show and start idle timer
+  useEffect(() => {
+    if (activeImageIndex !== null) {
+      showGalleryArrows();
+    } else {
+      if (galleryIdleTimerRef.current) {
+        clearTimeout(galleryIdleTimerRef.current);
+      }
+    }
+  }, [activeImageIndex, showGalleryArrows]);
+
+  useEffect(() => {
+    return () => {
+      if (galleryIdleTimerRef.current) {
+        clearTimeout(galleryIdleTimerRef.current);
+      }
+    };
+  }, []);
 
   const isIkea = project?.id === 'ikea-motion-showcase' || project?.slug === 'ikea-motion-showcase' || (project?.title ? project.title.toLowerCase().includes('ikea') : false);
 
@@ -186,20 +245,49 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   }, [project.id]);
 
   useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    v.defaultMuted = true;
+    v.muted = isIkea || isHeroVideoEnlarged || activeImageIndex !== null ? true : isMuted;
+
+    const tryPlay = () => {
+      if (!v) return;
+      if (isPlaying && !isHeroVideoEnlarged && activeImageIndex === null) {
+        if (v.readyState === 0) {
+          v.load();
+        }
+        const p = v.play();
+        if (p !== undefined) {
+          p.catch(() => {});
+        }
+      } else {
+        v.pause();
+      }
+    };
+
+    tryPlay();
+
+    const handleFocus = () => tryPlay();
+    const handleVisibility = () => {
+      if (!document.hidden) tryPlay();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [project.id, isPlaying, isHeroVideoEnlarged, activeImageIndex, isIkea, isMuted]);
+
+  useEffect(() => {
     return () => {
       if (videoRef.current) {
         videoRef.current.pause();
-        try {
-          videoRef.current.removeAttribute('src');
-          videoRef.current.load();
-        } catch {}
       }
       if (enlargedVideoRef.current) {
         enlargedVideoRef.current.pause();
-        try {
-          enlargedVideoRef.current.removeAttribute('src');
-          enlargedVideoRef.current.load();
-        } catch {}
       }
     };
   }, []);
@@ -226,8 +314,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         if (e.key === 'Escape') {
           handleCloseGallery();
         } else if (e.key === 'ArrowRight' && project.gallery) {
+          showGalleryArrows();
           setActiveImageIndex((activeImageIndex + 1) % project.gallery.length);
         } else if (e.key === 'ArrowLeft' && project.gallery) {
+          showGalleryArrows();
           setActiveImageIndex((activeImageIndex - 1 + project.gallery.length) % project.gallery.length);
         }
         return;
@@ -346,10 +436,16 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     loop
                     muted={isIkea || isHeroVideoEnlarged || activeImageIndex !== null ? true : isMuted}
                     playsInline
-                    preload="metadata"
+                    preload="auto"
                     onError={() => {
-                      if (videoRef.current) {
-                        videoRef.current.load();
+                      const v = videoRef.current;
+                      if (v) {
+                        setTimeout(() => {
+                          v.load();
+                          if (isPlaying && !isHeroVideoEnlarged && activeImageIndex === null) {
+                            v.play().catch(() => {});
+                          }
+                        }, 400);
                       }
                     }}
                     className="w-full h-full object-cover"
@@ -587,7 +683,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {project.gallery.map((media, idx) => {
-                  const isVideo = media.type === 'video' || (media.url && (media.url.endsWith('.mp4') || media.url.endsWith('.mov') || media.url.endsWith('.webm')));
+                  const isVideo = media.type === 'video' || isVideoMedia(media.url);
                   return (
                     <div
                       key={idx}
@@ -596,15 +692,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     >
                       <div className="aspect-[16/9] overflow-hidden bg-neutral-900 relative">
                         {isVideo ? (
-                          <video
-                            src={media.url}
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            preload="metadata"
-                            className="w-full h-full object-cover scale-[1.01] group-hover:scale-105 transition-transform duration-500"
-                          />
+                          <GalleryVideoThumb url={media.url} />
                         ) : (
                           <img
                             src={media.url}
@@ -635,6 +723,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               <div
                 className="fixed inset-0 z-[9999] w-screen h-screen flex items-center justify-center p-3 sm:p-6 md:p-8 bg-black select-none overflow-hidden"
                 onClick={handleCloseGallery}
+                onMouseMove={showGalleryArrows}
+                onTouchStart={showGalleryArrows}
               >
                 <div
                   className="relative max-w-6xl w-full max-h-[94vh] flex flex-col items-center justify-center"
@@ -660,7 +750,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
                   {/* Big Image/Video Display */}
                   <div className="relative max-w-5xl w-auto max-h-[80vh] sm:max-h-[82vh] rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex items-center justify-center bg-black mx-auto">
-                    {project.gallery[activeImageIndex].url && (project.gallery[activeImageIndex].url.endsWith('.mp4') || project.gallery[activeImageIndex].url.endsWith('.mov') || project.gallery[activeImageIndex].url.endsWith('.webm')) ? (
+                    {isVideoMedia(project.gallery[activeImageIndex].url) ? (
                       <video
                         key={`gallery-video-${activeImageIndex}-${project.gallery[activeImageIndex].url}`}
                         src={project.gallery[activeImageIndex].url}
@@ -679,26 +769,40 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       />
                     )}
 
-                    {/* Left Arrow */}
+                    {/* Left Arrow (Slide Previous) */}
                     <button
                       onClick={() => {
                         audio.playMechanicalClick();
+                        showGalleryArrows();
                         setActiveImageIndex((activeImageIndex - 1 + project.gallery!.length) % project.gallery!.length);
                       }}
-                      className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full bg-black/80 border border-white/25 hover:border-white/60 text-white hover:bg-black transition-all cursor-pointer backdrop-blur-md"
-                      title="Précédent"
+                      onMouseEnter={handleGalleryControlsMouseEnter}
+                      onMouseLeave={handleGalleryControlsMouseLeave}
+                      className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full bg-black/80 border border-white/25 hover:border-white/60 text-white hover:bg-black transition-all duration-300 cursor-pointer backdrop-blur-md z-30 transform-gpu ${
+                        areGalleryArrowsVisible
+                          ? 'opacity-100 pointer-events-auto translate-x-0'
+                          : 'opacity-0 pointer-events-none -translate-x-2'
+                      }`}
+                      title={lang === 'fr' ? 'Diapositive précédente' : 'Previous slide'}
                     >
                       <ArrowLeft className="h-5 w-5" />
                     </button>
 
-                    {/* Right Arrow */}
+                    {/* Right Arrow (Slide Next) */}
                     <button
                       onClick={() => {
                         audio.playMechanicalClick();
+                        showGalleryArrows();
                         setActiveImageIndex((activeImageIndex + 1) % project.gallery!.length);
                       }}
-                      className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full bg-black/80 border border-white/25 hover:border-white/60 text-white hover:bg-black transition-all cursor-pointer backdrop-blur-md"
-                      title="Suivant"
+                      onMouseEnter={handleGalleryControlsMouseEnter}
+                      onMouseLeave={handleGalleryControlsMouseLeave}
+                      className={`absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full bg-black/80 border border-white/25 hover:border-white/60 text-white hover:bg-black transition-all duration-300 cursor-pointer backdrop-blur-md z-30 transform-gpu ${
+                        areGalleryArrowsVisible
+                          ? 'opacity-100 pointer-events-auto translate-x-0'
+                          : 'opacity-0 pointer-events-none translate-x-2'
+                      }`}
+                      title={lang === 'fr' ? 'Diapositive suivante' : 'Next slide'}
                     >
                       <ArrowRight className="h-5 w-5" />
                     </button>

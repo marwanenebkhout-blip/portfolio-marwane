@@ -14,8 +14,13 @@ interface ControlledVideoProps {
   isIkea?: boolean;
   isPaused?: boolean;
   poster?: string;
-  fallbackImage?: string;
 }
+
+const isVideoMedia = (url?: string): boolean => {
+  if (!url) return false;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return clean.endsWith('.mp4') || clean.endsWith('.mov') || clean.endsWith('.webm') || clean.endsWith('.ogg');
+};
 
 const ControlledVideo: React.FC<ControlledVideoProps> = ({
   src,
@@ -25,75 +30,83 @@ const ControlledVideo: React.FC<ControlledVideoProps> = ({
   isIkea,
   isPaused = false,
   poster,
-  fallbackImage,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [hasError, setHasError] = useState(false);
 
-  useEffect(() => {
-    setHasError(false);
-  }, [src]);
-
+  // Synchronize playback state instantly
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
+
     v.muted = true;
     v.defaultMuted = true;
     if (isIkea) {
       v.volume = 0;
     }
 
-    const updatePlayback = () => {
-      if (!videoRef.current) return;
-      if (!isActive || !isSectionInView || isPaused || document.hidden) {
-        videoRef.current.pause();
-      } else {
-        const playPromise = videoRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {});
-        }
-      }
-    };
+    const shouldPlay = isActive && isSectionInView && !isPaused && !document.hidden;
 
-    document.addEventListener('visibilitychange', updatePlayback);
-    updatePlayback();
-
-    return () => {
-      document.removeEventListener('visibilitychange', updatePlayback);
-      // Cleanly release hardware video decoder resources from GPU memory
-      if (v) {
-        v.pause();
-        try {
-          v.removeAttribute('src');
-          v.load();
-        } catch {}
+    if (shouldPlay) {
+      if (v.readyState === 0) {
+        v.load();
       }
-    };
+      const playPromise = v.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {});
+      }
+    } else {
+      v.pause();
+    }
   }, [isActive, isSectionInView, isIkea, isPaused]);
 
-  if (hasError && fallbackImage) {
-    return (
-      <img
-        src={fallbackImage}
-        alt="Fallback visual"
-        referrerPolicy="no-referrer"
-        loading="lazy"
-        className={className}
-      />
-    );
-  }
+  // Handle tab visibility and focus transitions (e.g. returning after hours in another tab/modal)
+  useEffect(() => {
+    const handleWakeup = () => {
+      const v = videoRef.current;
+      if (!v) return;
+      if (isActive && isSectionInView && !isPaused && !document.hidden) {
+        if (v.readyState === 0) {
+          v.load();
+        }
+        v.play().catch(() => {});
+      } else {
+        v.pause();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleWakeup);
+    window.addEventListener('focus', handleWakeup);
+    return () => {
+      document.removeEventListener('visibilitychange', handleWakeup);
+      window.removeEventListener('focus', handleWakeup);
+      const v = videoRef.current;
+      if (v) {
+        v.pause();
+      }
+    };
+  }, [isActive, isSectionInView, isPaused]);
 
   return (
     <video
       ref={videoRef}
       src={src}
-      poster={poster || fallbackImage}
+      poster={poster}
+      autoPlay
       loop
       muted
       playsInline
-      preload="metadata"
+      preload="auto"
       onError={() => {
-        setHasError(true);
+        // Auto-recover decoder if dropped after long background sessions
+        const v = videoRef.current;
+        if (v) {
+          setTimeout(() => {
+            v.load();
+            if (isActive && isSectionInView && !isPaused && !document.hidden) {
+              v.play().catch(() => {});
+            }
+          }, 400);
+        }
       }}
       className={className}
     />
@@ -104,33 +117,77 @@ interface ProjectsSectionProps {
   onSelectProject: (project: Project) => void;
   setCursorMode: (mode: CursorMode, text?: string) => void;
   isPaused?: boolean;
+  selectedProjectId?: string | null;
 }
 
 export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
   onSelectProject,
   setCursorMode,
   isPaused = false,
+  selectedProjectId,
 }) => {
   const { lang, t } = useLanguage();
   const [activeIdx, setActiveIdx] = useState<number>(0);
   const sectionRef = useRef<HTMLElement>(null);
-  const [isSectionInView, setIsSectionInView] = useState(false);
+  const [isSectionInView, setIsSectionInView] = useState(true);
+
+  // Controls visibility: auto-hide arrows on idle, reveal on mouse movement
+  const [areArrowsVisible, setAreArrowsVisible] = useState(false);
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isHoveringControlsRef = useRef(false);
+
+  const showArrows = useCallback(() => {
+    setAreArrowsVisible(true);
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+    idleTimerRef.current = setTimeout(() => {
+      if (!isHoveringControlsRef.current) {
+        setAreArrowsVisible(false);
+      }
+    }, 2500);
+  }, []);
+
+  const handleControlsMouseEnter = useCallback(() => {
+    isHoveringControlsRef.current = true;
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+    setAreArrowsVisible(true);
+  }, []);
+
+  const handleControlsMouseLeave = useCallback(() => {
+    isHoveringControlsRef.current = false;
+    showArrows();
+  }, [showArrows]);
+
+  useEffect(() => {
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Sync active project if selectedProjectId was updated via modal navigation
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    const foundIdx = projects.findIndex((p) => p.id === selectedProjectId);
+    if (foundIdx !== -1 && foundIdx !== activeIdx) {
+      setActiveIdx(foundIdx);
+    }
+  }, [selectedProjectId]);
 
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
 
-    // Check if already in view on mount
-    const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight + 80 && rect.bottom > -80) {
-      setIsSectionInView(true);
-    }
-
+    // Monitor section visibility with generous margin so media is primed before user reaches section
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsSectionInView(entry.isIntersecting);
       },
-      { rootMargin: '80px' }
+      { rootMargin: '800px 0px 800px 0px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -161,15 +218,18 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
   };
 
   const handlePrev = () => {
+    showArrows();
     selectProjectByIndex(Math.max(0, activeIdx - 1));
   };
 
   const handleNext = () => {
+    showArrows();
     selectProjectByIndex(Math.min(filteredProjects.length - 1, activeIdx + 1));
   };
 
   // Keyboard navigation support
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    showArrows();
     if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
       e.preventDefault();
       handlePrev();
@@ -184,6 +244,17 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
       ref={sectionRef}
       id="work"
       onKeyDown={handleKeyDown}
+      onMouseMove={showArrows}
+      onMouseEnter={showArrows}
+      onTouchStart={showArrows}
+      onMouseLeave={() => {
+        if (!isHoveringControlsRef.current) {
+          if (idleTimerRef.current) {
+            clearTimeout(idleTimerRef.current);
+          }
+          setAreArrowsVisible(false);
+        }
+      }}
       tabIndex={0}
       className="relative outline-none py-10 sm:py-14 px-4 sm:px-6 max-w-7xl mx-auto"
     >
@@ -202,7 +273,15 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
           </div>
 
           {/* Controls: Prev/Next & Live Counter */}
-          <div className="flex items-center gap-1.5 bg-[#111114] p-1 rounded-full border border-white/10 shadow-lg backdrop-blur-md">
+          <div
+            onMouseEnter={handleControlsMouseEnter}
+            onMouseLeave={handleControlsMouseLeave}
+            className={`flex items-center gap-1.5 bg-[#111114] p-1 rounded-full border border-white/10 shadow-lg backdrop-blur-md transition-all duration-300 transform-gpu ${
+              areArrowsVisible
+                ? 'opacity-100 translate-y-0 pointer-events-auto'
+                : 'opacity-0 -translate-y-1 pointer-events-none'
+            }`}
+          >
             <button
               onClick={handlePrev}
               disabled={activeIdx === 0}
@@ -243,8 +322,8 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
               ? 30
               : 40 + idx;
 
-            // Mount media strictly for the active card to prevent excessive memory and decoder consumption
-            const shouldMountMedia = isActive;
+            // Mount media for active and adjacent cards to buffer frames in advance and ensure 0ms latency
+            const shouldMountMedia = isActive || Math.abs(idx - activeIdx) <= 2;
 
             return (
               <div
@@ -342,12 +421,11 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                 {project.videoUrl ? (
                                   <ControlledVideo
                                     src={project.videoUrl}
-                                    poster={project.heroImage}
-                                    fallbackImage={project.heroImage}
                                     isActive={isActive}
                                     isSectionInView={isSectionInView}
                                     isIkea={isIkea}
                                     isPaused={isPaused}
+                                    poster={project.heroImage}
                                     className={`w-full h-full object-cover block select-none transition-transform duration-300 origin-center ${
                                       isLina
                                         ? 'scale-[1.45] group-hover/media:scale-[1.48]'
@@ -379,14 +457,14 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                   onMouseLeave={() => setCursorMode('DEFAULT')}
                                   className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer transform-gpu"
                                 >
-                                  {secondaryTop && (secondaryTop.endsWith('.mp4') || secondaryTop.endsWith('.mov') || secondaryTop.endsWith('.webm')) ? (
+                                  {isVideoMedia(secondaryTop) ? (
                                     <ControlledVideo
                                       src={secondaryTop}
-                                      fallbackImage={project.heroImage}
                                       isActive={isActive}
                                       isSectionInView={isSectionInView}
                                       isIkea={isIkea}
                                       isPaused={isPaused}
+                                      poster={project.heroImage}
                                       className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                     />
                                   ) : (
@@ -412,14 +490,14 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
                                   onMouseLeave={() => setCursorMode('DEFAULT')}
                                   className="relative aspect-[16/10] md:aspect-auto md:flex-1 md:min-h-0 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden border border-white/15 bg-black group/media cursor-pointer transform-gpu"
                                 >
-                                  {secondaryBottom && (secondaryBottom.endsWith('.mp4') || secondaryBottom.endsWith('.mov') || secondaryBottom.endsWith('.webm')) ? (
+                                  {isVideoMedia(secondaryBottom) ? (
                                     <ControlledVideo
                                       src={secondaryBottom}
-                                      fallbackImage={project.heroImage}
                                       isActive={isActive}
                                       isSectionInView={isSectionInView}
                                       isIkea={isIkea}
                                       isPaused={isPaused}
+                                      poster={project.heroImage}
                                       className="w-full h-full md:absolute md:inset-0 object-cover block select-none group-hover/media:scale-[1.03] transition-transform duration-300"
                                     />
                                   ) : (
